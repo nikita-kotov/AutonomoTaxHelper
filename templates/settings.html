@@ -160,4 +160,9 @@
   <button class="primary">{{ t('common.save') }}</button>
 </form>
 <form id="backup-now" method="post" action="{{ url_for('system.backup_now') }}"></form>
+<div class="card">
+  <h2 style="margin-top:0">{{ t('cats.title') }}</h2>
+  <p class="small muted">{{ t('cats.intro') }}</p>
+  <a class="btn" href="{{ url_for('categories.page') }}">{{ t('nav.categories') }}</a>
+</div>
 {% endblock %}

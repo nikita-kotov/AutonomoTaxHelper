@@ -267,3 +267,12 @@ def test_language_is_switched_by_buttons_not_by_a_dropdown(client):
     assert 'select name="lang"' not in head
     client.post("/lang", data={"lang": "ru", "next": "/"})
     assert "Панель" in client.get("/").get_data(as_text=True)
+
+
+def test_categories_are_reached_from_the_settings_not_from_the_main_menu(client):
+    head = client.get("/").get_data(as_text=True).split("</header>")[0]
+    assert 'href="/categories"' not in head
+    settings = client.get("/settings").get_data(as_text=True)
+    assert 'href="/categories"' in settings
+    page = client.get("/categories").get_data(as_text=True)
+    assert 'href="/settings"' in page

@@ -23,7 +23,6 @@
     <a href="{{ url_for('submit.index') }}">{{ t('nav.submit') }}</a>
     <a href="{{ url_for('filings.index') }}">{{ t('nav.filings') }}</a>
     <a href="{{ url_for('settings.page', year=year) }}">{{ t('nav.settings') }}</a>
-    <a href="{{ url_for('categories.page') }}">{{ t('nav.categories') }}</a>
   </nav>
   <form class="yearpick" method="get" action="">
     {% for k, v in request.args.items() if k != 'year' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}

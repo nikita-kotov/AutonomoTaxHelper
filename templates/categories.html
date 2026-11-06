@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ t('nav.categories') }}{% endblock %}
 {% block content %}
+<p class="small"><a href="{{ url_for('settings.page') }}">← {{ t('nav.settings') }}</a></p>
 <h1>{{ t('cats.title') }}</h1>
 <p class="muted small">{{ t('cats.intro') }}</p>
 
