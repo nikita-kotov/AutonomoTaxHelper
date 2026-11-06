@@ -129,7 +129,7 @@ A diferencia de la validación anterior, que solo comprueba un fichero y no nece
 | Valores por defecto | tipo de IVA y retención para nuevas operaciones; modo de tipos de cambio |
 | Oficina en casa | porcentaje de afectación, superficie de la vivienda, multiplicador, reglas de suministros y alquiler, modo de IVA de suministros |
 | IRPF | difícil justificación (porcentaje y límite), rendimiento del año anterior para la minoración, reducción opcional del 20 % por inicio de actividad, mínimo personal y escala autonómica para la estimación de la Renta, saldo de IVA a compensar |
-| Categorías | modos de IRPF e IVA, límite anual de deducción (por ejemplo, seguro médico 500 € por persona), nombres, notas, categorías propias |
+| Ajustes → Categorías de gastos | modos de IRPF e IVA, límite anual de deducción (por ejemplo, seguro médico 500 € por persona), nombres, notas, categorías propias |
 | Declaraciones | cualquier plazo se edita a mano y no se recalcula; modelos propios |
 
 ## Datos, privacidad y copias de seguridad

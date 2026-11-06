@@ -129,7 +129,7 @@ Unlike the validation above, which only checks a file and needs no certificate, 
 | Defaults | IVA rate and withholding for new entries; currency rate mode |
 | Home office | affected percentage, dwelling area, multiplier, rules for supplies and rent, IVA mode for supplies |
 | IRPF | difícil justificación (percentage and cap), previous-year income for the minoración, optional 20% reduction for starting an activity, personal minimum and regional scale for the Renta estimate, IVA balance to compensate |
-| Categories | IRPF and IVA modes, annual deduction cap (for example health insurance 500 € per person), names, notes, custom categories |
+| Settings → Expense categories | IRPF and IVA modes, annual deduction cap (for example health insurance 500 € per person), names, notes, custom categories |
 | Filings | any deadline can be edited by hand and is not recalculated; custom models |
 
 ## Data, privacy and backups
