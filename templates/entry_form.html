@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}{{ t('form.title_expense') if kind == 'expense' else t('form.title_income') }}{% endblock %}
+{% block content %}
+{% set regimes = EXPENSE_REGIMES if kind == 'expense' else INCOME_REGIMES %}
+<h1>{{ t('form.heading_' ~ ('edit_' if entry_id else 'new_') ~ kind) }}</h1>
+
+<form id="f" method="post" enctype="multipart/form-data">
+  <div class="card">
+    <div class="formgrid">
+      <label>{{ t('form.date') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="date" value="{{ e.get('date','') }}" required></label>
+      <label>{{ t('form.number') }} <input name="number" value="{{ e.get('number','') }}"></label>
+      <label>{{ t('form.supplier') if kind == 'expense' else t('form.client') }}
+        <input name="counterparty" value="{{ e.get('counterparty','') }}" placeholder="{{ t('form.party_ph') }}"
+               list="contact-names" autocomplete="off"></label>
+      <datalist id="contact-names">{% for c in contacts.values() %}<option value="{{ c.name }}">{% endfor %}</datalist>
+      <label>{{ t('form.country') }} <input name="country" value="{{ e.get('country','ES') }}" maxlength="2"></label>
+      <label>{{ t('form.vat_id') }} <input name="vat_id" value="{{ e.get('vat_id','') }}"></label>
+    </div>
+    {% if not entry_id %}
+    <label class="small"><input type="checkbox" name="save_contact" value="1" checked>
+      {{ t('form.remember_supplier') if kind == 'expense' else t('form.remember_client') }}</label>
+    {% endif %}
+    <label>{{ t('form.description') }} <input name="description" value="{{ e.get('description','') }}" placeholder="{{ t('form.description_ph') }}"></label>
+    {% if kind == 'expense' %}
+    <label>{{ t('form.category') }}
+      <select name="category_id" required>
+        <option value="">{{ t('form.choose') }}</option>
+        {% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if e.get('category_id')|string == c.id|string }}
+          title="{{ cat_note(c) }}">{{ cat_name(c) }}</option>{% endfor %}
+      </select></label>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <label>{{ t('form.regime') }}
+      <select name="regime" id="regime">
+        {% for k, v in regimes.items() %}<option value="{{ k }}" {{ 'selected' if e.get('regime') == k }}>{{ v }}</option>{% endfor %}
+      </select></label>
+    <div id="regime-help" class="note small" hidden></div>
+    <div class="formgrid">
+      <label>{{ t('form.base') }} <input name="base" id="base" value="{{ e.get('base','') }}" inputmode="decimal" required placeholder="0,00"></label>
+      <label id="rate-wrap">{{ t('form.rate') }}
+        <select name="vat_rate" id="vat_rate">
+          {# a stored rate that is not in the usual list (5, 7.5, …) must stay selectable, or saving would rewrite it #}
+          {% set current_rate = e.get('vat_rate') or defaults.vat_rate %}
+          {% for r in (vat_rates if current_rate in vat_rates else [current_rate] + vat_rates) %}<option value="{{ r }}" {{ 'selected' if current_rate == r }}>{{ r }}%</option>{% endfor %}
+        </select></label>
+      <label id="vat-wrap">{{ t('form.vat_amount') }} <input name="vat_amount" id="vat_amount" value="{{ e.get('vat_amount','') }}" inputmode="decimal" placeholder="{{ t('form.vat_auto') }}"></label>
+      {% if kind == 'income' %}
+      <label>{{ t('form.withholding') }} <input name="withholding_rate" id="withholding_rate" value="{{ e.get('withholding_rate','0') }}" inputmode="decimal" placeholder="15">
+        <span class="small muted">{{ t('form.withholding_hint') }}</span></label>
+      {% else %}
+      <label>{{ t('form.withholding_paid') }} <input name="withholding_rate" id="withholding_rate" value="{{ e.get('withholding_rate','0') }}" inputmode="decimal" placeholder="19">
+        <span class="small muted">{{ t('form.withholding_paid_hint') }}</span></label>
+      {% endif %}
+      <label>{{ t('form.currency') }} <input name="currency" id="currency" value="{{ e.get('currency','EUR') }}" maxlength="3" style="text-transform:uppercase"></label>
+      <label class="fx" hidden>{{ t('form.fx_amount') }} <input name="orig_amount" id="orig_amount" value="{{ e.get('orig_amount','') }}" inputmode="decimal"></label>
+      <label class="fx" hidden>{{ t('form.fx_rate') }} <input name="fx_rate" id="fx_rate" value="{{ e.get('fx_rate','') }}" inputmode="decimal"></label>
+      <div class="fx" hidden>
+        {% if fx_auto %}<button type="button" id="fx-get">{{ t('form.fx_get') }}</button>{% endif %}
+        <div id="fx-status" class="small muted"></div>
+      </div>
+      <input type="hidden" name="fx_rate_date" id="fx_rate_date" value="{{ e.get('fx_rate_date','') }}">
+      <input type="hidden" name="fx_source" id="fx_source" value="{{ e.get('fx_source','') }}">
+    </div>
+    <p class="small muted fx" hidden>{{ t('form.fx_hint') }}</p>
+    <p class="small muted">{{ t('form.eur_note') }}</p>
+  </div>
+
+  <div class="card">
+    <div class="formgrid">
+      <label>{{ t('form.document') }}
+        <input type="file" name="document"></label>
+      {% if doc %}<label>{{ t('form.current_file') }}<br><a href="{{ url_for('system.document', name=doc) }}" target="_blank">{{ t('common.open') }}</a>
+        &nbsp;<input type="checkbox" name="remove_document" value="1"> {{ t('form.remove') }}</label>{% endif %}
+    </div>
+    <label>{{ t('form.notes') }} <textarea name="notes" rows="2">{{ e.get('notes','') }}</textarea></label>
+  </div>
+
+  <div id="preview" class="card note" hidden></div>
+
+  <button class="primary" type="submit">{{ t('common.save') }}</button>
+  <a class="btn" href="{{ url_for('entries.index') }}">{{ t('common.cancel') }}</a>
+  {% if entry_id %}
+  <button class="danger" type="submit" form="del" onclick="return confirm({{ t('form.confirm_delete')|tojson }})">{{ t('common.delete') }}</button>
+  {% endif %}
+</form>
+{% if entry_id %}<form id="del" method="post" action="{{ url_for('entries.delete', entry_id=entry_id) }}"></form>{% endif %}
+
+<script>
+(function () {
+  const kind = {{ kind|tojson }};
+  const TXT = {{ js_texts|tojson }};
+  const f = document.getElementById('f');
+  const regime = document.getElementById('regime');
+  const rateWrap = document.getElementById('rate-wrap');
+  const vatWrap = document.getElementById('vat-wrap');
+  const vatAmt = document.getElementById('vat_amount');
+  const help = document.getElementById('regime-help');
+  const box = document.getElementById('preview');
+  const base = document.getElementById('base');
+  const currency = document.getElementById('currency');
+  const origAmt = document.getElementById('orig_amount');
+  const fxRate = document.getElementById('fx_rate');
+  const fxDate = document.getElementById('fx_rate_date');
+  const fxSource = document.getElementById('fx_source');
+  const fxGet = document.getElementById('fx-get');
+  const fxStatus = document.getElementById('fx-status');
+  const dateInput = f.elements['date'];
+  const FX_AUTO = {{ fx_auto|tojson }};
+  // When editing, keep the stored invoice VAT and euro base unless the user changes their inputs.
+  let vatManual = vatAmt.value.trim() !== '';
+  let baseManual = base.value.trim() !== '';
+  let firstPreview = true;  // the first answer tells whether a stored VAT is a deliberate amount or just base × rate
+  const HELP = {
+    eu_reverse: TXT['form.help_eu_reverse'], non_eu_reverse: TXT['form.help_non_eu_reverse'],
+    no_vat: TXT['form.help_no_vat'], eu_b2b: TXT['form.help_eu_b2b'],
+    non_eu: TXT['form.help_non_eu'], exempt: '', domestic: ''
+  };
+  function fill(tpl, vars) { return tpl.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)); }
+  function syncRegime() {
+    const r = regime.value;
+    const noRate = {{ rateless_regimes|tojson }}.includes(r);
+    rateWrap.hidden = noRate; vatWrap.hidden = noRate || r === 'eu_reverse' || r === 'non_eu_reverse';
+    help.hidden = !HELP[r]; help.textContent = HELP[r] || '';
+  }
+  function body() {
+    const d = Object.fromEntries(new FormData(f).entries());
+    delete d.document;
+    d.kind = kind; d.vat_manual = firstPreview ? false : vatManual; d.base_manual = baseManual;
+    return d;
+  }
+  function isForeign() { const c = currency.value.trim().toUpperCase(); return c.length === 3 && c !== 'EUR'; }
+  function syncCurrency() {
+    document.querySelectorAll('.fx').forEach(el => { el.hidden = !isForeign(); });
+    base.required = !isForeign();  // for a foreign invoice the base can be left to the conversion
+  }
+  async function fetchRate() {
+    if (!isForeign() || !dateInput.value) return;
+    fxStatus.textContent = TXT['form.fx_loading'];
+    const url = {{ url_for('entries.fx_rate')|tojson }} + '?currency=' + encodeURIComponent(currency.value.trim()) +
+      '&date=' + encodeURIComponent(dateInput.value);
+    const j = await (await fetch(url)).json();
+    if (!j.ok) { fxStatus.textContent = j.reason; return; }
+    fxRate.value = j.rate; fxDate.value = j.rate_date; fxSource.value = j.source;
+    fxStatus.textContent = fill(TXT['form.fx_found'], j);
+    baseManual = false; schedule();
+  }
+  let timer;
+  async function refresh() {
+    syncRegime();
+    const res = await fetch({{ url_for('entries.preview')|tojson }}, {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body())});
+    const j = await res.json();
+    if (!j.ok) { box.hidden = true; return; }
+    if (firstPreview) {
+      firstPreview = false;
+      // keep a stored VAT only when it differs from base × rate (an amount typed from the invoice)
+      const stored = vatAmt.value.trim();
+      vatManual = stored !== '' && Math.round(parseFloat(stored.replace(',', '.')) * 100) !== j.vat_cents;
+      if (vatManual) schedule();  // redraw the preview with the stored VAT
+    }
+    if (j.base_text && !baseManual) base.value = j.base_text;  // euro base converted by the server
+    if (!vatManual && regime.value === 'domestic') {
+      vatAmt.value = (j.vat_cents / 100).toFixed(2);
+    }
+    let html = '';
+    if (kind === 'expense') {
+      html = fill(j.reverse ? TXT['form.pv_expense_reverse'] : TXT['form.pv_expense'], j);
+      if (j.warn) html += '<br><em>' + j.warn + '</em>';
+    } else {
+      html = fill(TXT['form.pv_income'], j);
+    }
+    box.innerHTML = html; box.hidden = false;
+  }
+  function schedule() { clearTimeout(timer); timer = setTimeout(refresh, 150); }
+  // A new entry starts from the saved client/supplier: fields the user has not touched are filled in.
+  const CONTACTS = {{ contacts|tojson }};
+  const AUTOFILL = {{ (not entry_id)|tojson }};
+  const party = f.elements['counterparty'];
+  const touched = new Set();
+  const FILLED = ['country', 'vat_id', 'regime', 'category_id', 'vat_rate', 'withholding_rate', 'description'];
+  FILLED.forEach(n => { const el = f.elements[n]; if (el) el.addEventListener('input', () => touched.add(n)); });
+  function fillFromContact() {
+    const c = AUTOFILL ? CONTACTS[party.value.trim().toLowerCase()] : null;
+    if (!c) return;
+    FILLED.forEach(n => {
+      const el = f.elements[n], value = c[n];
+      if (!el || touched.has(n) || value === '' || value == null) return;
+      if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === String(value))) {
+        if (n !== 'vat_rate') return;
+        el.add(new Option(value + '%', value));  // a rate that is not in the usual list
+      }
+      el.value = value;
+    });
+    syncRegime(); schedule();
+  }
+  party.addEventListener('change', fillFromContact);
+  party.addEventListener('input', () => { if (CONTACTS[party.value.trim().toLowerCase()]) fillFromContact(); });
+  vatAmt.addEventListener('input', () => { vatManual = vatAmt.value.trim() !== ''; schedule(); });
+  base.addEventListener('input', () => { baseManual = base.value.trim() !== ''; });
+  [origAmt, fxRate].forEach(el => el.addEventListener('input', () => { baseManual = false; }));
+  fxRate.addEventListener('input', () => { fxSource.value = 'manual'; fxDate.value = ''; });  // a typed rate is manual
+  currency.addEventListener('change', () => {
+    syncCurrency(); baseManual = false;
+    if (FX_AUTO && isForeign() && !fxRate.value) fetchRate();
+  });
+  dateInput.addEventListener('change', () => { if (FX_AUTO && isForeign() && fxSource.value !== 'manual') fetchRate(); });
+  if (fxGet) fxGet.addEventListener('click', fetchRate);
+  f.addEventListener('input', schedule); f.addEventListener('change', schedule);
+  syncCurrency(); syncRegime(); refresh();
+})();
+</script>
+{% endblock %}

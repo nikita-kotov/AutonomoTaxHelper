@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.filings') }}{% endblock %}
+{% block content %}
+<h1>{{ t('filings.title') }}</h1>
+<p class="muted small">{{ t('filings.intro') }}</p>
+
+<form class="card toolbar" method="post" action="{{ url_for('filings.bulk_filed') }}"
+      onsubmit="return confirm({{ t('filings.bulk_confirm')|tojson }})">
+  <label>{{ t('filings.bulk_label') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="upto" required></label>
+  <button>{{ t('filings.bulk_btn') }}</button>
+  <span class="small muted">{{ t('filings.bulk_hint') }}</span>
+</form>
+
+{% for y, rows in groups %}
+<h2>{{ y }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('dash.col_model') }}</th><th>{{ t('dash.col_period') }}</th><th>{{ t('dash.col_due') }}</th><th>{{ t('dash.col_status') }}</th><th>{{ t('filings.col_filed') }}</th><th>{{ t('filings.col_reference') }}</th>
+      <th class="num">{{ t('filings.col_calc') }}</th><th class="num">{{ t('filings.col_actual') }}</th><th></th></tr>
+  {% for f in rows %}
+  <tr>
+    <td><strong>{{ f.model }}</strong> <span class="muted small">{{ model_title(f.model) }}</span></td>
+    <td>{{ f.period }}</td>
+    <td>{{ f.due_date|dmy }}{% if f.display in ('overdue','due_soon','open') %}<div class="small muted">{{ t('common.days', n=f.days_left) }}</div>{% endif %}</td>
+    <td><span class="badge {{ f.display }}">{{ t('status.' ~ f.display) }}</span></td>
+    <td>{{ f.filed_date|dmy }}</td>
+    <td class="small">{{ f.reference }}{% if f.document %} <a href="{{ url_for('system.document', name=f.document) }}" target="_blank">📎</a>{% endif %}</td>
+    <td class="num">{% if f.calc_result is not none %}{{ f.calc_result|eur }}{% endif %}</td>
+    <td class="num">{% if f.result_cents is not none %}{{ f.result_cents|eur }}{% endif %}</td>
+    <td class="num" style="white-space:nowrap">
+      {% if f.status != 'filed' %}
+      <form class="inline" method="post" action="{{ url_for('filings.mark', filing_id=f.id) }}">
+        <input type="hidden" name="action" value="filed"><button class="small primary">{{ t('common.filed_short') }}</button></form>
+      {% else %}
+      <form class="inline" method="post" action="{{ url_for('filings.mark', filing_id=f.id) }}">
+        <input type="hidden" name="action" value="pending"><button class="small">{{ t('filings.undo') }}</button></form>
+      {% endif %}
+      <a class="btn small" href="{{ url_for('filings.edit', filing_id=f.id) }}">{{ t('common.details') }}</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endfor %}
+
+<form class="inline" method="post" action="{{ url_for('filings.restore') }}">
+  <button>{{ t('filings.restore_btn') }}</button> <span class="small muted">{{ t('filings.restore_hint') }}</span>
+</form>
+
+<h2>{{ t('filings.add_title') }}</h2>
+<form class="card" method="post" action="{{ url_for('filings.new') }}">
+  <p class="small muted">{{ t('filings.add_hint') }}</p>
+  <div class="formgrid">
+    <label>{{ t('filings.f_year') }} <input name="fyear" value="{{ today.year }}" required></label>
+    <label>{{ t('dash.col_model') }} <input name="model" placeholder="349" required></label>
+    <label>{{ t('dash.col_period') }} <input name="period" placeholder="1T / ANUAL"></label>
+    <label>{{ t('filings.f_due') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="due_date" required></label>
+  </div>
+  <button class="primary">{{ t('common.add') }}</button>
+</form>
+{% endblock %}

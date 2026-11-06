@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ t('submit.result_title') }}{% endblock %}
+{% block content %}
+<h1>{{ t('submit.result_title') }}: {{ r.model }} {{ r.period }} {{ r.year }}</h1>
+{% if r.status == 'accepted' %}<div class="flash ok">{{ t('submit.result_accepted', env=r.env|upper) }}</div>
+{% elif r.status == 'rejected' %}<div class="flash error">{{ t('submit.result_rejected', env=r.env|upper) }}</div>
+{% else %}<div class="flash warn">{{ t('submit.result_error') }}</div>{% endif %}
+<div class="card">
+  <table>
+    <tr><td>{{ t('submit.col_when') }}</td><td>{{ r.submitted_at }} · {{ r.env|upper }}</td></tr>
+    <tr><td>{{ t('aeat.tipo') }}</td><td>{{ r.tipo }} · {{ r.result_cents|eur }}</td></tr>
+    {% if r.csv %}<tr><td>CSV</td><td><code>{{ r.csv }}</code></td></tr>{% endif %}
+    {% if r.justificante %}<tr><td>{{ t('submit.justificante') }}</td><td><code>{{ r.justificante }}</code></td></tr>{% endif %}
+    {% if r.expediente %}<tr><td>{{ t('submit.expediente') }}</td><td><code>{{ r.expediente }}</code></td></tr>{% endif %}
+    {% if r.fecha %}<tr><td>{{ t('submit.recorded') }}</td><td>{{ r.fecha }} {{ r.hora }}</td></tr>{% endif %}
+    <tr><td>SHA-256</td><td><code>{{ r.file_sha256[:16] }}…</code></td></tr>
+  </table>
+  {% if r.pdf %}<p><a class="btn" href="{{ url_for('system.document', name=r.pdf) }}" target="_blank">{{ t('aeat.open_pdf') }}</a></p>
+  {% elif r.status == 'accepted' %}<p class="small muted">{{ t('submit.no_pdf') }}</p>{% endif %}
+</div>
+{% if errors %}<div class="note bad"><strong>{{ t('libros.errors') }}</strong><ul style="margin:.3rem 0 0 1rem">{% for m in errors %}<li>{{ m }}</li>{% endfor %}</ul></div>{% endif %}
+{% if warnings %}<div class="note warn"><strong>{{ t('libros.avisos') }}</strong><ul style="margin:.3rem 0 0 1rem">{% for m in warnings %}<li>{{ m }}</li>{% endfor %}</ul></div>{% endif %}
+<p><a class="btn" href="{{ url_for('submit.index') }}">{{ t('submit.back') }}</a></p>
+{% endblock %}

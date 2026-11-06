@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.submit') }}{% endblock %}
+{% block content %}
+<h1>{{ t('submit.title') }}</h1>
+<div class="note warn"><strong>{{ t('submit.env_test') }}</strong> {{ t('submit.intro') }}</div>
+{% if outside %}<div class="note warn">{{ t('submit.hours_warning') }}</div>{% endif %}
+
+<h2>{{ t('submit.cert_title') }}</h2>
+<div class="card">
+  {% if cert_error %}<div class="note bad">{{ cert_error }}</div>
+  {% elif not certs %}<p>{{ t('submit.cert_none') }}</p>
+  {% else %}
+  <form method="post" action="{{ url_for('submit.choose_certificate') }}">
+    <label>{{ t('submit.cert_pick') }}
+      <select name="thumbprint">
+        <option value="">{{ t('form.choose') }}</option>
+        {% for c in certs %}<option value="{{ c.thumbprint }}" {{ 'selected' if c.thumbprint == selected }}>{{ c.name }} · {{ c.nif }} · {{ t('submit.cert_until', date=c.not_after) }}</option>{% endfor %}
+      </select></label>
+    <button>{{ t('common.save') }}</button>
+  </form>
+  <p class="small muted">{{ t('submit.cert_hint') }}</p>
+  {% endif %}
+</div>
+
+<h2>{{ t('submit.new_title') }}</h2>
+<form class="card toolbar" method="get" action="{{ url_for('submit.review') }}">
+  <label>{{ t('submit.model') }} <select name="model">{% for m in models %}<option>{{ m }}</option>{% endfor %}</select></label>
+  <label>{{ t('nav.year') }} <input name="year" value="{{ default_year }}" size="5" inputmode="numeric"></label>
+  <label>{{ t('submit.quarter') }}
+    <select name="q">{% for i in range(1, 5) %}<option value="{{ i }}" {{ 'selected' if i == default_quarter }}>{{ i }}T</option>{% endfor %}</select></label>
+  <button class="primary">{{ t('submit.review_btn') }}</button>
+</form>
+
+<h2>{{ t('submit.history_title') }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('submit.col_when') }}</th><th>{{ t('submit.model') }}</th><th class="num">{{ t('aeat.result') }}</th>
+    <th>{{ t('submit.col_status') }}</th><th>CSV</th><th></th></tr>
+  {% for r in history %}
+  <tr>
+    <td>{{ r.submitted_at }}<div class="small muted">{{ r.env|upper }}</div></td>
+    <td>{{ r.model }} {{ r.period }} {{ r.year }}</td>
+    <td class="num">{{ r.result_cents|eur }}</td>
+    <td>{% if r.status == 'accepted' %}<span class="badge filed">{{ t('submit.status_accepted') }}</span>
+        {% elif r.status == 'rejected' %}<span class="badge overdue">{{ t('submit.status_rejected') }}</span>
+        {% else %}<span class="badge due_soon">{{ t('submit.status_error') }}</span>{% endif %}</td>
+    <td><code>{{ r.csv }}</code></td>
+    <td class="num"><a class="btn small" href="{{ url_for('submit.detail', submission_id=r.id) }}">{{ t('common.open') }}</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">{{ t('submit.history_empty') }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

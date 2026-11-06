@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.settings') }}{% endblock %}
+{% block content %}
+<h1>{{ t('settings.title') }}</h1>
+<form method="post">
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_language') }}</h2>
+    <label>{{ t('settings.language') }}
+      <select name="language">
+        <option value="" {{ 'selected' if not raw.get('language') }}>{{ t('settings.language_auto') }}</option>
+        {% for code, name in LANGS.items() %}<option value="{{ code }}" {{ 'selected' if raw.get('language') == code }}>{{ name }}</option>{% endfor %}
+      </select></label>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_taxpayer') }}</h2>
+    <p class="small muted">{{ t('settings.taxpayer_hint') }}</p>
+    <div class="formgrid">
+      <label>NIF / NIE <input name="holder_nif" value="{{ raw.get('holder_nif','') }}" maxlength="9"></label>
+      <label>{{ t('settings.surname') }} <input name="holder_surname" value="{{ raw.get('holder_surname','') }}"></label>
+      <label>{{ t('settings.firstname') }} <input name="holder_firstname" value="{{ raw.get('holder_firstname','') }}"></label>
+    </div>
+    <div class="formgrid">
+      <label>{{ t('settings.payment') }}
+        <select name="payment_method">
+          <option value="nrc" {{ 'selected' if raw.get('payment_method','nrc') == 'nrc' }}>{{ t('settings.payment_nrc') }}</option>
+          <option value="domiciliacion" {{ 'selected' if raw.get('payment_method') == 'domiciliacion' }}>{{ t('settings.payment_debit') }}</option>
+        </select></label>
+      <label>{{ t('settings.iban') }} <input name="holder_iban" value="{{ raw.get('holder_iban','') }}" placeholder="ES.."></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_profile') }}</h2>
+    <p class="small muted">{{ t('settings.profile_hint') }}</p>
+    <label>{{ t('settings.activity_start') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="activity_start" value="{{ raw.get('activity_start','') }}"></label>
+    <div class="small muted" style="margin:-.3rem 0 .8rem">{{ t('settings.activity_start_hint') }}</div>
+    <div class="formgrid">
+      <label>{{ t('settings.activity_code') }}
+        <select name="activity_code">
+          {% for code in ACTIVITY_CODES %}<option value="{{ code }}" {{ 'selected' if raw.get('activity_code', 'A05') == code }}>{{ t('activity.' ~ code) }}</option>{% endfor %}
+        </select></label>
+      <label>{{ t('settings.iae_epigraph') }} <input name="iae_epigraph" value="{{ raw.get('iae_epigraph','') }}" maxlength="5" placeholder="763"></label>
+    </div>
+    <div class="small muted" style="margin:-.3rem 0 .8rem">{{ t('settings.activity_code_hint') }}</div>
+    <div class="formgrid">
+      <label>{{ t('settings.irpf_method') }}
+        <select name="irpf_method">
+          <option value="simplificada" {{ 'selected' if raw.get('irpf_method','simplificada') == 'simplificada' }}>{{ t('settings.method_simplified') }}</option>
+          <option value="normal" {{ 'selected' if raw.get('irpf_method') == 'normal' }}>{{ t('settings.method_normal') }}</option>
+        </select></label>
+      <label>{{ t('settings.irpf_rate') }} <input name="irpf_rate_pct" value="{{ raw.get('irpf_rate_pct','20') }}" inputmode="decimal">
+        <span class="small muted">{{ t('settings.irpf_rate_hint') }}</span></label>
+    </div>
+    <label><input type="checkbox" name="vat_registered" value="1" {{ 'checked' if raw.get('vat_registered','1') == '1' }}>
+      {{ t('settings.vat_registered') }}</label>
+    <div class="small muted" style="margin:-.3rem 0 .8rem">{{ t('settings.vat_registered_hint') }}</div>
+    <label>{{ t('settings.vat_negative') }}
+      <select name="vat_negative_4t">
+        <option value="compensate" {{ 'selected' if raw.get('vat_negative_4t','compensate') == 'compensate' }}>{{ t('settings.vat_negative_compensate') }}</option>
+        <option value="refund" {{ 'selected' if raw.get('vat_negative_4t') == 'refund' }}>{{ t('settings.vat_negative_refund') }}</option>
+      </select>
+      <span class="small muted">{{ t('settings.vat_negative_hint') }}</span></label>
+    <div>
+      <div class="small muted">{{ t('settings.tracked') }}</div>
+      {% for m in known_models %}
+        <label style="display:inline-block;margin-right:1rem"><input type="checkbox" name="tracked_models" value="{{ m }}" {{ 'checked' if m in tracked }}>
+          {{ m }} <span class="muted">{{ model_title(m) }}</span></label>
+      {% endfor %}
+    </div>
+    <label>{{ t('settings.holidays') }}
+      <textarea name="extra_holidays" rows="2" placeholder="2026-12-08, 2027-01-06">{{ raw.get('extra_holidays','') }}</textarea></label>
+    <div class="small muted">{{ t('settings.holidays_hint') }}</div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_defaults') }}</h2>
+    <label>{{ t('settings.fx_mode') }}
+      <select name="fx_mode">
+        <option value="auto" {{ 'selected' if raw.get('fx_mode','auto') == 'auto' }}>{{ t('settings.fx_auto') }}</option>
+        <option value="manual" {{ 'selected' if raw.get('fx_mode') == 'manual' }}>{{ t('settings.fx_manual') }}</option>
+      </select></label>
+    <div class="small muted" style="margin:-.3rem 0 .8rem">{{ t('settings.fx_hint') }}</div>
+    <div class="formgrid">
+      <label>{{ t('settings.default_vat') }} <input name="default_vat_rate" value="{{ raw.get('default_vat_rate','21') }}" inputmode="decimal"></label>
+      <label>{{ t('settings.default_wh') }} <input name="default_withholding_rate" value="{{ raw.get('default_withholding_rate','0') }}" inputmode="decimal">
+        <span class="small muted">{{ t('settings.default_wh_hint') }}</span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_home') }}</h2>
+    <p class="small muted">{{ t('settings.home_hint') }}</p>
+    <div class="formgrid">
+      <label>{{ t('settings.home_pct') }} <input name="home_affected_pct" value="{{ raw.get('home_affected_pct','0') }}" inputmode="decimal"></label>
+      <label>{{ t('settings.home_total') }} <input name="home_total_m2" value="{{ raw.get('home_total_m2','0') }}" inputmode="decimal"></label>
+      <label>{{ t('settings.supplies_factor') }}
+        <input name="supplies_factor_pct" value="{{ raw.get('supplies_factor_pct') or raw.get('supplies_factor', '0.30')|pct }}" inputmode="decimal"></label>
+    </div>
+    <label>{{ t('settings.rule_supplies') }}
+      <select name="supplies_rule">
+        <option value="share_factor" {{ 'selected' if raw.get('supplies_rule','share_factor') == 'share_factor' }}>{{ t('settings.rule_supplies_factor') }}</option>
+        <option value="share" {{ 'selected' if raw.get('supplies_rule') == 'share' }}>{{ t('settings.rule_supplies_share') }}</option>
+      </select></label>
+    <label>{{ t('settings.rule_property') }}
+      <select name="property_rule">
+        <option value="share" {{ 'selected' if raw.get('property_rule','share') == 'share' }}>{{ t('settings.rule_property_share') }}</option>
+        <option value="share_factor" {{ 'selected' if raw.get('property_rule') == 'share_factor' }}>{{ t('settings.rule_property_factor') }}</option>
+      </select></label>
+    <div class="note small">{{ t('settings.rule_note') }}</div>
+    <label>{{ t('settings.vat_home') }}
+      <select name="vat_home_mode">
+        <option value="share" {{ 'selected' if raw.get('vat_home_mode','share') == 'share' }}>{{ t('settings.vat_home_share') }}</option>
+        <option value="share_factor" {{ 'selected' if raw.get('vat_home_mode') == 'share_factor' }}>{{ t('settings.vat_home_factor') }}</option>
+        <option value="none" {{ 'selected' if raw.get('vat_home_mode') == 'none' }}>{{ t('settings.vat_home_none') }}</option>
+      </select></label>
+    <div class="note small">{{ t('settings.vat_home_note') }}</div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_irpf') }}</h2>
+    <label><input type="checkbox" name="difficult_enabled" value="1" {{ 'checked' if raw.get('difficult_enabled','1') == '1' }}>
+      {{ t('settings.difficult_on') }}</label>
+    <div class="formgrid">
+      <label>{{ t('settings.difficult_pct') }} <input name="difficult_pct_pct" value="{{ raw.get('difficult_pct_pct') or raw.get('difficult_pct', '0.05')|pct }}" inputmode="decimal"></label>
+      <label>{{ t('settings.difficult_cap') }} <input name="difficult_cap_eur" value="{{ raw.get('difficult_cap_eur','2000') }}" inputmode="decimal"></label>
+      <label>{{ t('settings.prev_yield') }}
+        <input name="prev_year_net_yield_eur" value="{{ raw.get('prev_year_net_yield_eur','') }}" inputmode="decimal" placeholder="{{ t('settings.prev_yield_ph') }}"></label>
+    </div>
+    <div class="note small">{{ t('settings.difficult_note') }}</div>
+    <label style="margin-top:.8rem"><input type="checkbox" name="start_reduction" value="1" {{ 'checked' if raw.get('start_reduction') == '1' }}>
+      {{ t('settings.start_reduction') }}</label>
+    <div class="small muted" style="margin:-.3rem 0 .6rem">{{ t('settings.start_reduction_hint') }}</div>
+    <label>{{ t('settings.start_reduction_year') }}
+      <input name="start_reduction_year" value="{{ raw.get('start_reduction_year','') }}" inputmode="numeric" maxlength="4" size="6" placeholder="{{ raw.get('activity_start', '')[:4] }}">
+      <span class="small muted">{{ t('settings.start_reduction_year_hint') }}</span></label>
+    <div class="formgrid" style="margin-top:.8rem">
+      <label>{{ t('settings.renta_minimum') }} <input name="renta_personal_minimum_eur" value="{{ raw.get('renta_personal_minimum_eur','5550') }}" inputmode="decimal"></label>
+      <label>{{ t('settings.renta_other') }} <input name="renta_other_income_eur" value="{{ raw.get('renta_other_income_eur','0') }}" inputmode="decimal"></label>
+    </div>
+    <label>{{ t('settings.renta_scale') }}
+      <textarea name="renta_regional_scale" rows="6" placeholder="0 9.5&#10;12500 12.5">{{ raw.get('renta_regional_scale','') }}</textarea>
+      <span class="small muted">{{ t('settings.renta_scale_hint') }}</span></label>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_vat_carry', year=year) }}</h2>
+    <label>{{ t('settings.vat_carry') }} <input name="vat_carry_in" value="{{ carry }}" inputmode="decimal" placeholder="0,00"></label>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t('settings.h_backup') }}</h2>
+    <label>{{ t('settings.backup_dir') }}
+      <input name="backup_dir" value="{{ raw.get('backup_dir','') }}" placeholder="D:\\Backups\\TaxHelper"></label>
+    <p class="small muted">{{ t('settings.backup_hint') }}</p>
+    {% if raw.get('last_backup_at') %}<p class="small">{{ t('settings.backup_last') }}: <strong>{{ raw.get('last_backup_at') }}</strong></p>{% endif %}
+    {% if raw.get('last_backup_error') %}<div class="note bad small">{{ t('settings.backup_error') }}: {{ raw.get('last_backup_error') }}</div>{% endif %}
+    {% if raw.get('backup_dir') %}<button type="submit" form="backup-now">{{ t('settings.backup_now') }}</button>{% endif %}
+  </div>
+  <button class="primary">{{ t('common.save') }}</button>
+</form>
+<form id="backup-now" method="post" action="{{ url_for('system.backup_now') }}"></form>
+{% endblock %}

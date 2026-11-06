@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Modelo 303{% endblock %}
+{% block content %}
+<h1>Modelo 303 · IVA · {{ q }}T {{ year }}</h1>
+<div class="tabs">
+  {% for i in range(1,5) %}<a class="{{ 'active' if i == q }}" href="{{ url_for('reports.vat303', year=year, q=i) }}">{{ i }}T</a>{% endfor %}
+</div>
+
+{% for w in rep.warnings %}<div class="note warn">{{ t(w) }}</div>{% endfor %}
+<div class="note small">{{ t('r303.hint') }}</div>
+
+<h2>{{ t('r303.h_accrued') }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>Casilla</th><th>{{ t('r303.concept') }}</th><th class="num">Base imponible</th><th class="num">Cuota</th></tr>
+  {% for rate, cas in [(4, '01–03'), (10, '04–06'), (21, '07–09')] %}
+  <tr><td><span class="casilla">{{ cas }}</span></td><td>Régimen general {{ rate }}%</td>
+      <td class="num">{{ rep.by_rate[rate][0]|eur }}</td><td class="num">{{ rep.by_rate[rate][1]|eur }}</td></tr>
+  {% endfor %}
+  <tr><td><span class="casilla">10–11</span></td><td>Adquisiciones intracomunitarias de bienes y servicios</td><td class="num">{{ rep.c10|eur }}</td><td class="num">{{ rep.c11|eur }}</td></tr>
+  <tr><td><span class="casilla">12–13</span></td><td>Otras operaciones con inversión del sujeto pasivo</td><td class="num">{{ rep.c12|eur }}</td><td class="num">{{ rep.c13|eur }}</td></tr>
+  {% if rep.c14 or rep.c15 %}<tr><td><span class="casilla">14–15</span></td><td>Modificación bases y cuotas</td><td class="num">{{ rep.c14|eur }}</td><td class="num">{{ rep.c15|eur }}</td></tr>{% endif %}
+  <tr class="total"><td><span class="casilla">27</span></td><td>Total cuota devengada</td><td></td><td class="num">{{ rep.c27|eur }}</td></tr>
+</table></div>
+
+<h2>{{ t('r303.h_deductible') }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>Casilla</th><th>{{ t('r303.concept') }}</th><th class="num">Base</th><th class="num">Cuota</th></tr>
+  <tr><td><span class="casilla">28–29</span></td><td>Operaciones interiores corrientes <span class="small muted">({{ t('r303.incl_non_eu_isp') }})</span></td><td class="num">{{ rep.c28|eur }}</td><td class="num">{{ rep.c29|eur }}</td></tr>
+  <tr><td><span class="casilla">36–37</span></td><td>Adquisiciones intracomunitarias corrientes</td><td class="num">{{ rep.c36|eur }}</td><td class="num">{{ rep.c37|eur }}</td></tr>
+  {% if rep.c40 or rep.c41 %}<tr><td><span class="casilla">40–41</span></td><td>Rectificación de deducciones</td><td class="num">{{ rep.c40|eur }}</td><td class="num">{{ rep.c41|eur }}</td></tr>{% endif %}
+  <tr class="total"><td><span class="casilla">45</span></td><td>Total a deducir</td><td></td><td class="num">{{ rep.c45|eur }}</td></tr>
+</table></div>
+
+<h2>{{ t('r303.h_result') }}</h2>
+<div class="tablewrap"><table>
+  <tr><td><span class="casilla">46</span></td><td>Resultado régimen general (27 − 45)</td><td class="num">{{ rep.c46|eur }}</td></tr>
+  <tr><td><span class="casilla">64–66</span></td><td>Suma de resultados / atribuible a la Administración del Estado (100%)</td><td class="num">{{ rep.c66|eur }}</td></tr>
+  <tr><td><span class="casilla">78</span></td><td>Cuotas a compensar de periodos anteriores aplicadas
+     <span class="small muted">({{ t('r303.carry_in', amount=carry_in|eur) }})</span></td><td class="num">{{ rep.c78|eur }}</td></tr>
+  <tr class="total"><td><span class="casilla">69/71</span></td><td>Resultado de la autoliquidación</td><td class="num">{{ rep.c71|eur }}</td></tr>
+  {% if rep.c72 %}<tr><td><span class="casilla">72</span></td><td>{{ t('r303.to_compensate') }}</td><td class="num">{{ rep.c72|eur }}</td></tr>{% endif %}
+  {% if rep.carry_out and not rep.c72 %}<tr><td><span class="casilla">87</span></td><td>Cuotas a compensar pendientes para periodos posteriores</td><td class="num">{{ rep.carry_out|eur }}</td></tr>{% endif %}
+</table></div>
+{% if rep.c71 < 0 and q == 4 %}<div class="note">{{ t('r303.q4_negative') }}</div>{% endif %}
+
+<h2>{{ t('r303.h_info') }}</h2>
+<div class="tablewrap"><table>
+  <tr><td>{{ t('r303.info_eu') }}</td><td class="num">{{ rep.info_eu_services_base|eur }}</td></tr>
+  <tr><td>{{ t('r303.info_non_eu') }}</td><td class="num">{{ rep.info_non_eu_base|eur }}</td></tr>
+  <tr><td>{{ t('r303.info_exempt') }}</td><td class="num">{{ rep.info_exempt_base|eur }}</td></tr>
+</table></div>
+
+{% include "_aeat.html" %}
+
+<h2>{{ t('r303.h_detail') }}</h2>
+<details open><summary>{{ t('r303.detail_summary', n=detail|length) }}</summary>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('entries.col_date') }}</th><th>{{ t('form.description') }}</th><th>{{ t('entries.col_cat') }}</th><th class="num">Base</th><th class="num">IVA</th><th class="num">{{ t('r303.deducted') }}</th></tr>
+  {% for d in detail %}<tr><td>{{ d.e.date|dmy }}</td><td>{{ d.e.description }}</td><td>{{ d.e.category }}</td>
+    <td class="num">{{ d.e.base_cents|eur }}</td><td class="num">{{ d.e.vat_cents|eur }}</td>
+    <td class="num">{{ d.vat_ded|eur if d.e.kind == 'expense' else '' }}</td></tr>{% endfor %}
+</table></div></details>
+
+{% if s.affected_share > 0 %}
+<div class="note small">{{ t('r303.home_note', pct=s.home_affected_pct,
+    mode=t('r303.mode_factor') if s.vat_home_mode == 'share_factor' else (t('r303.mode_none') if s.vat_home_mode == 'none' else t('r303.mode_share'))) }}</div>
+{% endif %}
+{% endblock %}

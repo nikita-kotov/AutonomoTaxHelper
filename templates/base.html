@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Autonomo Tax Helper{% endblock %} · Autonomo Tax Helper</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="credit"><span>{{ t('banner.text', author=AUTHOR) }}</span>
+  <a class="thanks" href="{{ DONATE_URL }}" target="_blank" rel="noopener noreferrer">♥ {{ t('banner.thanks') }}</a></div>
+<header class="top">
+  <a class="brand" href="{{ url_for('dashboard.index', year=year) }}">Autonomo Tax Helper</a>
+  <nav>
+    <a href="{{ url_for('dashboard.index', year=year) }}">{{ t('nav.dashboard') }}</a>
+    <a href="{{ url_for('entries.index', year=year) }}">{{ t('nav.entries') }}</a>
+    <a href="{{ url_for('contacts.index') }}">{{ t('nav.contacts') }}</a>
+    <a href="{{ url_for('reports.vat303', year=year) }}">303</a>
+    <a href="{{ url_for('reports.irpf130', year=year) }}">130</a>
+    {% if HAS_115 %}<a href="{{ url_for('reports.rent115', year=year) }}">115</a>{% endif %}
+    <a href="{{ url_for('reports.renta', year=year) }}">Renta</a>
+    <a href="{{ url_for('libros.index', year=year) }}">{{ t('nav.libros') }}</a>
+    <a href="{{ url_for('submit.index') }}">{{ t('nav.submit') }}</a>
+    <a href="{{ url_for('filings.index') }}">{{ t('nav.filings') }}</a>
+    <a href="{{ url_for('settings.page', year=year) }}">{{ t('nav.settings') }}</a>
+    <a href="{{ url_for('categories.page') }}">{{ t('nav.categories') }}</a>
+  </nav>
+  <form class="yearpick" method="get" action="">
+    {% for k, v in request.args.items() if k != 'year' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <label>{{ t('nav.year') }}
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+        {% if year not in years %}<option value="{{ year }}" selected>{{ year }}</option>{% endif %}
+      </select>
+    </label>
+  </form>
+  <form class="langs" method="post" action="{{ url_for('system.switch_language') }}" role="group" aria-label="{{ t('nav.language') }}">
+    <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+    {% for code, name in LANGS.items() %}<button name="lang" value="{{ code }}" title="{{ name }}" lang="{{ code }}"
+      class="{{ 'active' if code == lang }}" {{ 'aria-current=true' if code == lang }}>{{ code|upper }}</button>{% endfor %}
+  </form>
+  {% if CAN_QUIT %}<form class="yearpick" method="post" action="{{ url_for('system.quit_app') }}"
+    onsubmit="return confirm('{{ t('quit.confirm')|e }}')"><button>{{ t('quit.btn') }}</button></form>{% endif %}
+</header>
+<main>
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer>
+  {{ t('footer.disclaimer') }} ·
+  <a href="{{ url_for('system.backup') }}">{{ t('footer.backup') }}</a> ·
+  <a href="{{ url_for('entries.export_csv', year=year) }}">{{ t('footer.csv', year=year) }}</a>
+</footer>
+</body>
+</html>

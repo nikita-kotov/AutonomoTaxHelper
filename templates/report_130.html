@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Modelo 130{% endblock %}
+{% block content %}
+<h1>Modelo 130 · IRPF · {{ q }}T {{ year }}</h1>
+<div class="tabs">
+  {% for i in range(1,5) %}<a class="{{ 'active' if i == q }}" href="{{ url_for('reports.irpf130', year=year, q=i) }}">{{ i }}T</a>{% endfor %}
+</div>
+<div class="note small">{{ t('r130.hint', rate=s.irpf_rate|pct) }}</div>
+
+{% for w in rep.warnings %}<div class="note warn">{{ t(w) }}</div>{% endfor %}
+
+<h2>Apartado I · Actividades en estimación directa</h2>
+<div class="tablewrap"><table>
+  <tr><td><span class="casilla">01</span></td><td>Ingresos computables ({{ t('r130.cumulative') }})</td><td class="num">{{ rep.c01|eur }}</td></tr>
+  <tr><td><span class="casilla">02</span></td><td>Gastos fiscalmente deducibles
+     <div class="small muted">{{ t('r130.c02_split', expenses=rep.expenses_gross|eur, difficult=rep.difficult|eur) }}</div></td><td class="num">{{ rep.c02|eur }}</td></tr>
+  <tr><td><span class="casilla">03</span></td><td>Rendimiento neto (01 − 02)</td><td class="num">{{ rep.c03|eur }}</td></tr>
+  <tr><td><span class="casilla">04</span></td><td>{{ s.irpf_rate|pct }}% de la casilla 03 ({{ t('r130.if_positive') }})</td><td class="num">{{ rep.c04|eur }}</td></tr>
+  <tr><td><span class="casilla">05</span></td><td>A deducir: pagos fraccionados de trimestres anteriores</td><td class="num">{{ rep.c05|eur }}</td></tr>
+  <tr><td><span class="casilla">06</span></td><td>Retenciones e ingresos a cuenta soportados</td><td class="num">{{ rep.c06|eur }}</td></tr>
+  <tr class="total"><td><span class="casilla">07</span></td><td>Pago fraccionado previo (04 − 05 − 06)</td><td class="num">{{ rep.c07|eur }}</td></tr>
+</table></div>
+
+<h2>Apartado III · Total liquidación</h2>
+<div class="tablewrap"><table>
+  <tr><td><span class="casilla">12</span></td><td>Suma de pagos fraccionados previos <span class="small muted">({{ t('r130.c12_note') }})</span></td><td class="num">{{ rep.c12|eur }}</td></tr>
+  <tr><td><span class="casilla">13</span></td><td>Minoración art. 110.3.c RIRPF
+     <div class="small muted">{{ t('r130.prev_year') }}: {{ (s.prev_year_net_yield_cents|eur) if s.prev_year_net_yield_cents is not none else t('r130.prev_year_unset') }}</div></td><td class="num">{{ rep.c13|eur }}</td></tr>
+  <tr><td><span class="casilla">14</span></td><td>Diferencia (12 − 13)</td><td class="num">{{ rep.c14|eur }}</td></tr>
+  <tr><td><span class="casilla">15</span></td><td>A deducir: resultados negativos de trimestres anteriores</td><td class="num">{{ rep.c15|eur }}</td></tr>
+  <tr><td><span class="casilla">16</span></td><td>Deducción por vivienda habitual <span class="small muted">({{ t('r130.c16_unsupported') }})</span></td><td class="num">{{ rep.c16|eur }}</td></tr>
+  <tr><td><span class="casilla">17</span></td><td>Resultado (14 − 15 − 16)</td><td class="num">{{ rep.c17|eur }}</td></tr>
+  <tr class="total"><td><span class="casilla">19</span></td><td>Resultado de la declaración</td><td class="num">{{ rep.c19|eur }}</td></tr>
+</table></div>
+{% if rep.c19 < 0 %}<div class="note">{{ t('r130.negative_note') }}</div>{% endif %}
+
+{% include "_aeat.html" %}
+
+<h2>{{ t('r130.h_expenses') }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('entries.col_cat') }}</th><th class="num">{{ t('r130.deducted') }}</th></tr>
+  {% for name, amt in by_cat.items() if amt %}<tr><td>{{ name }}</td><td class="num">{{ amt|eur }}</td></tr>{% endfor %}
+  {% if rep.difficult %}<tr><td>Gastos de difícil justificación ({{ s.difficult_pct|pct }}%,{{ t('r130.max') }} {{ s.difficult_cap_cents|eur }})</td><td class="num">{{ rep.difficult|eur }}</td></tr>{% endif %}
+  <tr class="total"><td>{{ t('r130.total_c02') }}</td><td class="num">{{ rep.c02|eur }}</td></tr>
+</table></div>
+
+{% if s.affected_share > 0 %}
+<div class="note small">{{ t('r130.home_note', pct=s.home_affected_pct,
+    supplies=(t('rule.share_factor', factor=s.supplies_factor|pct) if s.supplies_rule == 'share_factor' else t('rule.share')),
+    property=(t('rule.share_factor', factor=s.supplies_factor|pct) if s.property_rule == 'share_factor' else t('rule.share'))) }}</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t('submit.review_title') }}{% endblock %}
+{% block content %}
+{% set b = pre.built %}
+<h1>{{ t('submit.review_title') }}: {{ model }} {{ b.period }} {{ year }}</h1>
+<div class="note warn"><strong>{{ t('submit.env_test') }}</strong> {{ t('submit.intro') }}</div>
+{% if pre.outside_hours %}<div class="note warn">{{ t('submit.hours_warning') }}</div>{% endif %}
+
+<div class="card">
+  <p style="margin-top:0">{{ t('aeat.tipo') }}: <strong>{{ b.tipo }}</strong> <span class="small muted">({{ t('tipo.' ~ b.tipo) }})</span><br>
+    {{ t('aeat.result') }}: <strong>{{ b.result_cents|eur }}</strong><br>
+    {{ t('aeat.filename') }}: <code>{{ b.filename }}</code> · SHA-256 <code>{{ b.sha256[:12] }}…</code></p>
+  {% if pre.certificate %}
+  <p class="small">{{ t('submit.presenter') }}: <strong>{{ pre.certificate.name }}</strong> ({{ pre.certificate.nif }}),
+    {{ t('submit.cert_until', date=pre.certificate.not_after) }}</p>
+  {% endif %}
+  <div class="tablewrap"><table>
+    <tr><th>Casilla</th><th class="num">€</th></tr>
+    {% for number, cents in casillas %}<tr><td>{{ number }}</td><td class="num">{{ cents|eur }}</td></tr>{% endfor %}
+  </table></div>
+</div>
+
+{% if pre.issues %}
+<div class="note bad"><strong>{{ t('submit.issues_title') }}</strong>
+  <ul style="margin:.3rem 0 0 1rem">{% for m in pre.issues %}<li>{{ m }}</li>{% endfor %}</ul></div>
+<form class="inline" method="post" action="{{ url_for('aeat.check', model=model) }}">
+  <input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="q" value="{{ quarter }}">
+  <button class="primary">{{ t('aeat.check_btn') }}</button></form>
+<a class="btn" href="{{ url_for('submit.index') }}">{{ t('submit.back') }}</a>
+{% else %}
+<form class="card" method="post" action="{{ url_for('submit.send') }}">
+  <input type="hidden" name="model" value="{{ model }}"><input type="hidden" name="year" value="{{ year }}">
+  <input type="hidden" name="q" value="{{ quarter }}"><input type="hidden" name="sha" value="{{ b.sha256 }}">
+  {% if pre.needs_nrc %}
+  <label>{{ t('submit.nrc_label') }} <input name="nrc" maxlength="22" size="26" required autocomplete="off"></label>
+  <p class="small muted">{{ t('submit.nrc_hint') }}</p>
+  {% endif %}
+  <p class="small">{{ t('submit.review_intro') }}</p>
+  <label><input type="checkbox" name="confirm" value="1" required> {{ t('submit.confirm_check') }}</label>
+  <p><button class="primary">{{ t('submit.send_btn') }}</button>
+    <a class="btn" href="{{ url_for('submit.index') }}">{{ t('common.cancel') }}</a></p>
+</form>
+{% endif %}
+{% endblock %}

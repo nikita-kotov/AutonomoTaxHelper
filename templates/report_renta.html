@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Renta{% endblock %}
+{% block content %}
+<h1>Renta {{ year }} · Rendimientos de actividades económicas</h1>
+<div class="note small">{{ t('renta.hint', year=year) }}</div>
+
+<div class="tablewrap"><table>
+  <tr><td>Ingresos íntegros computables</td><td class="num">{{ a.income|eur }}</td></tr>
+  {% for name, amt in a.expenses_by_category.items() if amt %}
+  <tr><td class="muted">&nbsp;&nbsp;{{ t('renta.expense_prefix') }}: {{ name }}</td><td class="num">{{ amt|eur }}</td></tr>
+  {% endfor %}
+  <tr><td>Total gastos deducibles</td><td class="num">{{ a.expenses_total|eur }}</td></tr>
+  <tr><td>Diferencia (ingresos − gastos)</td><td class="num">{{ a.net_before_difficult|eur }}</td></tr>
+  <tr><td>Provisiones deducibles y gastos de difícil justificación
+     <span class="small muted">({{ s.difficult_pct|pct }}%,{{ t('r130.max') }} {{ s.difficult_cap_cents|eur }}{{ '' if (s.difficult_enabled and s.irpf_method == 'simplificada') else ', ' ~ t('renta.disabled') }})</span></td>
+     <td class="num">{{ a.difficult|eur }}</td></tr>
+  <tr class="total"><td>Rendimiento neto</td><td class="num">{{ a.net_yield|eur }}</td></tr>
+  {% if s.start_reduction_years and year in s.start_reduction_years %}
+  <tr><td>{{ t('renta.start_reduction') }} <span class="small muted">(20 %)</span></td><td class="num">{{ a.start_reduction|eur }}</td></tr>
+  <tr class="total"><td>{{ t('renta.net_after_reduction') }}</td><td class="num">{{ a.net_yield_reduced|eur }}</td></tr>
+  {% endif %}
+</table></div>
+{% if s.start_reduction_years and year in s.start_reduction_years %}<div class="note small">{{ t('renta.start_reduction_note') }}</div>{% endif %}
+
+<h2>{{ t('renta.h_paid') }}</h2>
+<div class="tablewrap"><table>
+  <tr><td>{{ t('renta.withholdings') }}</td><td class="num">{{ a.withholdings|eur }}</td></tr>
+  <tr><td>{{ t('renta.fractional_calc') }}</td><td class="num">{{ a.pagos_fraccionados_calc|eur }}</td></tr>
+</table></div>
+{% if paid %}
+<p class="small muted">{{ t('renta.tracker_intro') }}
+  {% for p in paid %}{{ p.period }}: {{ (p.result_cents|eur) if p.result_cents is not none else '—' }} ({{ t('renta.filed_yes') if p.status == 'filed' else t('renta.filed_no') }}){{ ', ' if not loop.last }}{% endfor %}.
+  {{ t('renta.use_justificantes') }}</p>
+{% endif %}
+
+{% if s.vat_registered %}
+<h2>{{ t('renta.h_vat') }}</h2>
+<div class="tablewrap"><table>
+  <tr><td>{{ t('renta.vat_sum') }}</td><td class="num">{{ a.vat_year_result|eur }}</td></tr>
+</table></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.libros') }}{% endblock %}
+{% block content %}
+<h1>{{ t('libros.title') }}</h1>
+<p class="muted small">{{ t('libros.intro') }}</p>
+
+<form class="toolbar" method="get" action="{{ url_for('libros.index') }}">
+  <input type="hidden" name="year" value="{{ year }}">
+  <label>{{ t('libros.through') }}
+    <select name="q" onchange="this.form.submit()">
+      {% for i in range(1, 5) %}<option value="{{ i }}" {{ 'selected' if upto == i }}>{{ i }}T</option>{% endfor %}
+    </select></label>
+  <button>{{ t('libros.refresh') }}</button>
+</form>
+
+{% if error %}
+<div class="flash error">{{ error }}</div>
+<p><a class="btn" href="{{ url_for('settings.page', year=year) }}">{{ t('nav.settings') }}</a></p>
+{% elif built %}
+<div class="card">
+  <p><strong>{{ built.filename }}</strong></p>
+  <p class="small">{{ t('libros.summary', income=built.income_lines, income_total=built.income_total_cents|eur,
+      expense=built.expense_lines, expense_total=built.expense_deductible_cents|eur) }}</p>
+  <div class="toolbar">
+    <a class="btn primary" href="{{ url_for('libros.download', year=year, q=upto) }}">{{ t('libros.download') }}</a>
+    <form class="inline" method="post" action="{{ url_for('libros.check', year=year) }}">
+      <input type="hidden" name="q" value="{{ upto }}">
+      <button title="{{ t('libros.check_hint') }}">{{ t('libros.check_btn') }}</button>
+    </form>
+  </div>
+  <p class="small muted">{{ t('libros.check_hint') }}</p>
+</div>
+
+{% if check %}
+<div class="card">
+  {% if check.ok %}<div class="flash ok">{{ t('libros.result_ok') }}</div>
+  {% else %}<div class="flash error">{{ t('libros.result_bad') }}</div>{% endif %}
+  {% if check.message %}<p class="small">{{ check.message }}</p>{% endif %}
+  {% if check.ok and check.periods %}<p class="small">{{ t('libros.valid_for') }}
+    {% if check.periods.get('iva') %}<span class="badge filed">{{ t('libros.for_iva') }}: {{ check.periods['iva']|join(', ') }}</span>{% endif %}
+    {% if check.periods.get('renta') %}<span class="badge filed">{{ t('libros.for_renta') }}: {{ check.periods['renta']|join(', ') }}</span>{% endif %}</p>{% endif %}
+  {% for title_key, items in (('libros.errors', check.errors), ('libros.avisos', check.warnings), ('libros.info', check.info)) %}
+    {% if items %}<h3>{{ t(title_key) }}</h3><ul class="small">{% for m in items %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if built.warnings %}
+<div class="card">
+  <h3>{{ t('libros.warnings_title', n=built.warnings|length) }}</h3>
+  <ul class="small">{% for w in built.warnings[:40] %}<li>{{ w }}</li>{% endfor %}</ul>
+  {% if built.warnings|length > 40 %}<p class="small muted">…</p>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<div class="card">
+  <h3>{{ t('libros.how_title') }}</h3>
+  <ul class="small">
+    <li>{{ t('libros.how_renta') }}</li>
+    <li>{{ t('libros.how_130') }}</li>
+    <li>{{ t('libros.how_303') }}</li>
+  </ul>
+</div>
+{% endblock %}

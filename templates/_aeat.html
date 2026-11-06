@@ -1,0 +1,38 @@
+<h2>{{ t('aeat.title') }}</h2>
+<div class="card">
+  {% if aeat.error %}
+    <div class="note warn">{{ aeat.error }} <a href="{{ url_for('settings.page', year=year) }}">{{ t('aeat.open_settings') }}</a></div>
+  {% else %}
+    {% set b = aeat.built %}
+    <p style="margin-top:0">
+      {{ t('aeat.tipo') }}: <strong>{{ b.tipo }}</strong>
+      <span class="small muted">({{ t('tipo.' ~ b.tipo) }})</span><br>
+      {{ t('aeat.result') }}: <strong>{{ b.result_cents|eur }}</strong> · {{ t('aeat.filename') }}: <code>{{ b.filename }}</code>
+    </p>
+    <form class="inline" method="post" action="{{ url_for('aeat.check', model=aeat.model) }}">
+      <input type="hidden" name="year" value="{{ aeat.year }}"><input type="hidden" name="q" value="{{ aeat.q }}">
+      <button class="primary">{{ t('aeat.check_btn') }}</button>
+    </form>
+    <a class="btn" href="{{ url_for('aeat.download', model=aeat.model, year=aeat.year, q=aeat.q) }}">{{ t('aeat.download', model=aeat.model) }}</a>
+    <a class="btn" href="{{ url_for('submit.review', model=aeat.model, year=aeat.year, q=aeat.q) }}">{{ t('submit.card_btn') }}</a>
+    <p class="small muted">{{ t('aeat.privacy') }}</p>
+
+    {% if aeat.check %}
+      {% set c = aeat.check %}
+      <hr style="border:0;border-top:1px solid var(--line)">
+      {% if c.ok and aeat.current %}
+        <div class="note" style="background:var(--ok-bg);color:var(--ok)">✔ {{ t('aeat.accepted', when=c.checked_at) }}
+          {% if c.pdf %}<a href="{{ url_for('system.document', name=c.pdf) }}" target="_blank">{{ t('aeat.open_pdf') }}</a>{% endif %}</div>
+      {% elif c.ok %}
+        <div class="note warn">{{ t('aeat.stale', when=c.checked_at) }}</div>
+      {% else %}
+        <div class="note bad"><strong>{{ t('aeat.errors_title', when=c.checked_at) }}</strong>
+          <ul style="margin:.3rem 0 0 1rem">{% for e in aeat.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if aeat.warnings %}
+        <div class="note warn"><strong>{{ t('aeat.warnings_title') }}</strong>
+          <ul style="margin:.3rem 0 0 1rem">{% for w in aeat.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</div>

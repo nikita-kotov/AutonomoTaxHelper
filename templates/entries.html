@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.entries') }}{% endblock %}
+{% block content %}
+<h1>{{ t('entries.title', year=year) }}</h1>
+
+<div class="toolbar">
+  <form class="toolbar" method="get">
+    <input type="hidden" name="year" value="{{ year }}">
+    <label>{{ t('entries.quarter') }}
+      <select name="q" onchange="this.form.submit()">
+        <option value="">{{ t('common.all') }}</option>
+        {% for i in range(1,5) %}<option value="{{ i }}" {{ 'selected' if quarter == i }}>{{ i }}T</option>{% endfor %}
+      </select></label>
+    <label>{{ t('entries.type') }}
+      <select name="kind" onchange="this.form.submit()">
+        <option value="">{{ t('common.all') }}</option>
+        <option value="income" {{ 'selected' if kind == 'income' }}>{{ t('entries.type_income') }}</option>
+        <option value="expense" {{ 'selected' if kind == 'expense' }}>{{ t('entries.type_expense') }}</option>
+      </select></label>
+    <label>{{ t('entries.search') }} <input name="text" value="{{ text }}" placeholder="{{ t('entries.search_ph') }}"></label>
+    <button>{{ t('entries.find') }}</button>
+  </form>
+  <span style="flex:1"></span>
+  <a class="btn" href="{{ url_for('importing.page') }}">{{ t('import.link') }}</a>
+  <a class="btn primary" href="{{ url_for('entries.new', kind='expense', year=year) }}">{{ t('dash.add_expense') }}</a>
+  <a class="btn primary" href="{{ url_for('entries.new', kind='income', year=year) }}">{{ t('entries.add_income') }}</a>
+</div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>{{ t('entries.col_date') }}</th><th>{{ t('entries.col_party') }}</th><th>{{ t('entries.col_cat') }}</th>
+    <th class="num">{{ t('entries.col_base') }}</th><th class="num">IVA</th><th class="num">{{ t('entries.col_wh') }}</th>
+    <th class="num">{{ t('entries.col_vat_ded') }}</th><th class="num">{{ t('entries.col_irpf') }}</th><th></th></tr>
+  {% for x in rows %}{% set r = x.r %}
+  <tr>
+    <td>{{ r.date|dmy }}<div class="small muted">{{ ((x.e.date.month - 1) // 3 + 1) }}T</div></td>
+    <td>
+      {% if r.kind == 'income' %}<span class="badge filed">{{ t('entries.income_badge') }}</span>{% endif %}
+      <strong>{{ r.counterparty or '—' }}</strong> {% if r.number %}<span class="muted small">№ {{ r.number }}</span>{% endif %}
+      <div class="small muted">{{ r.description }}</div>
+      {% if r.regime not in ('domestic',) %}<div class="small"><span class="badge">{{ t('regime.' ~ r.kind ~ '.' ~ r.regime ~ '.short') }}</span></div>{% endif %}
+    </td>
+    <td>{{ x.cat }}</td>
+    <td class="num">{{ r.base_cents|eur }}{% if r.orig_amount_cents is not none and r.currency != 'EUR' %}
+      <div class="small muted">{{ t('entries.fx_line', amount='%.2f'|format(r.orig_amount_cents / 100), currency=r.currency, rate=r.fx_rate) }}</div>{% endif %}</td>
+    <td class="num">{{ r.vat_cents|eur if r.vat_cents else '' }}{% if r.vat_rate != '0' %}<div class="small muted">{{ r.vat_rate }}%</div>{% endif %}</td>
+    <td class="num">{{ r.withholding_cents|eur if r.withholding_cents else '' }}</td>
+    <td class="num">{% if r.kind == 'expense' %}{{ x.vat_ded|eur }}{% endif %}</td>
+    <td class="num">{% if r.kind == 'expense' %}{{ x.irpf_ded|eur }}{% endif %}</td>
+    <td class="num">
+      {% if r.document %}<a class="small" href="{{ url_for('system.document', name=r.document) }}" target="_blank" title="{{ t('entries.document') }}">📎</a>{% endif %}
+      <a class="btn small" href="{{ url_for('entries.edit', entry_id=r.id) }}">{{ t('common.edit_short') }}</a>
+      <form class="inline" method="post" action="{{ url_for('entries.clone', entry_id=r.id) }}"><button class="small" title="{{ t('entries.clone_title') }}">⧉</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="muted">{{ t('entries.empty') }}</td></tr>
+  {% endfor %}
+  {% if rows %}
+  <tr class="total"><td colspan="3">{{ t('entries.total_row') }}</td>
+    <td class="num" colspan="3">{{ t('entries.totals', income=totals.income|eur, expense=totals.expense|eur) }}</td>
+    <td class="num">{{ totals.vat_ded|eur }}</td><td class="num">{{ totals.irpf_ded|eur }}</td><td></td></tr>
+  {% endif %}
+</table>
+</div>
+{% endblock %}

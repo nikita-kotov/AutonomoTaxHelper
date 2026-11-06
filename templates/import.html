@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ t('import.title') }}{% endblock %}
+{% block content %}
+<h1>{{ t('import.title') }}</h1>
+
+{% if plan is none or plan.errors or not plan.rows %}
+<div class="card">
+  <p>{{ t('import.intro') }}</p>
+  {% if plan %}{% for e in plan.errors %}<div class="flash error">{{ e }}</div>{% endfor %}{% endif %}
+  <form method="post" action="{{ url_for('importing.preview') }}" enctype="multipart/form-data">
+    <p><label>{{ t('import.file') }} <input type="file" name="file" accept=".csv,text/csv"></label></p>
+    <p><label>{{ t('import.or_paste') }}<br>
+      <textarea name="csv" rows="6" style="width:100%" spellcheck="false"></textarea></label></p>
+    <button class="primary">{{ t('import.preview_btn') }}</button>
+    <a class="btn" href="{{ url_for('importing.template') }}">{{ t('import.template') }}</a>
+  </form>
+</div>
+<div class="card">
+  <h2>{{ t('import.columns_title') }}</h2>
+  <p class="small">{{ t('import.columns_help') }}</p>
+</div>
+
+{% else %}
+<div class="card">
+  <p><strong>{{ t('import.summary', ok=plan.count('ok'), dup=plan.count('duplicate'), err=plan.count('error')) }}</strong></p>
+  {% set sums = plan.totals() %}
+  <p class="small muted">{{ t('import.totals', base=sums.base|eur, vat=sums.vat|eur, total=sums.total|eur) }}</p>
+</div>
+
+<form method="post" action="{{ url_for('importing.commit') }}">
+  <textarea name="csv" hidden>{{ csv_text }}</textarea>
+  <div class="tablewrap">
+  <table>
+    <tr><th></th><th>{{ t('import.col_row') }}</th><th>{{ t('entries.col_date') }}</th><th>{{ t('entries.col_party') }}</th>
+      <th>{{ t('entries.col_cat') }}</th><th class="num">{{ t('entries.col_base') }}</th><th class="num">IVA</th>
+      <th class="num">{{ t('import.col_total') }}</th><th>{{ t('import.col_status') }}</th></tr>
+    {% for r in plan.rows %}
+    <tr>
+      <td><input type="checkbox" name="row" value="{{ r.index }}" {{ 'checked' if r.preselected }} {{ 'disabled' if not r.ok }}
+           aria-label="{{ t('import.col_row') }} {{ r.index }}"></td>
+      <td class="muted">{{ r.index }}</td>
+      {% if r.ok %}
+      <td>{{ r.values.date|dmy }}</td>
+      <td><strong>{{ r.values.counterparty or '—' }}</strong>{% if r.values.number %} <span class="muted small">№ {{ r.values.number }}</span>{% endif %}
+        <div class="small muted">{{ r.values.description }}</div></td>
+      <td>{{ r.shown.category }}</td>
+      <td class="num">{{ r.values.base_cents|eur }}{% if r.values.currency != 'EUR' and r.values.orig_amount_cents is not none %}
+        <div class="small muted">{{ t('entries.fx_line', amount='%.2f'|format(r.values.orig_amount_cents / 100), currency=r.values.currency, rate=r.values.fx_rate) }}</div>{% endif %}</td>
+      <td class="num">{{ r.values.vat_cents|eur if r.values.vat_cents else '' }}</td>
+      <td class="num">{{ r.total_cents|eur }}</td>
+      {% else %}
+      <td>{{ r.shown.date }}</td><td>{{ r.shown.party }}{% if r.shown.number %} <span class="muted small">№ {{ r.shown.number }}</span>{% endif %}</td>
+      <td>{{ r.shown.category }}</td><td></td><td></td><td></td>
+      {% endif %}
+      <td>
+        {% if not r.ok %}<span class="badge overdue">{{ t('import.status_err') }}</span>
+        {% elif r.duplicate %}<span class="badge due_soon">{{ t('import.status_dup') }}</span>
+        {% else %}<span class="badge filed">{{ t('import.status_ok') }}</span>{% endif %}
+        {% if r.duplicate %}<div class="small muted">{{ t('import.dup_ledger') if r.duplicate == 'ledger' else t('import.dup_file') }}</div>{% endif %}
+        {% for m in r.errors %}<div class="small" style="color:var(--bad)">{{ m }}</div>{% endfor %}
+        {% for m in r.warnings %}<div class="small" style="color:var(--warn)">{{ m }}</div>{% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p style="margin-top:1rem">
+    <button class="primary">{{ t('import.commit_btn') }}</button>
+    <a class="btn" href="{{ url_for('importing.page') }}">{{ t('import.cancel') }}</a>
+  </p>
+</form>
+{% endif %}
+{% endblock %}

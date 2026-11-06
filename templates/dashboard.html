@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.dashboard') }}{% endblock %}
+{% block content %}
+<h1>{{ t('dash.title', year=year) }}</h1>
+
+{% for n in notes %}<div class="note warn">{{ n }}</div>{% endfor %}
+
+{% if overdue %}
+<div class="note bad">
+  <strong>{{ t('dash.overdue_title', n=overdue|length) }}</strong>
+  {% for f in overdue %}
+    <div>{{ t('dash.overdue_line', model=f.model, period=f.period, year=f.year, due=f.due_date|dmy, days=-f.days_left) }}
+      <form class="inline" method="post" action="{{ url_for('filings.mark', filing_id=f.id) }}">
+        <input type="hidden" name="action" value="filed"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="small">{{ t('common.mark_filed') }}</button></form>
+      <a class="btn small" href="{{ url_for('filings.edit', filing_id=f.id) }}">{{ t('common.details') }}</a></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="figures">
+    <div class="figure"><div class="label"><span class="swatch s1"></span>{{ t('dash.fig_income') }}</div>
+      <div class="value">{{ annual.income|eur0 }}</div></div>
+    <div class="figure"><div class="label"><span class="swatch s2"></span>{{ t('dash.fig_expenses') }}</div>
+      <div class="value">{{ (annual.expenses_total + annual.difficult)|eur0 }}</div></div>
+    <div class="figure"><div class="label">{{ t('dash.fig_taxes') }}</div>
+      <div class="value">{{ taxes_total|eur0 }}</div>
+      <div class="small muted">{{ t('dash.fig_taxes_sub') }}</div></div>
+  </div>
+  <div class="legend">{% for sr in chart.series %}<span class="{{ sr.cls }}"><i class="swatch"></i>{{ sr.label }}</span>{% endfor %}</div>
+  <div class="chart" id="overview-chart"></div>
+  <script type="application/json" id="overview-data">{{ chart|tojson }}</script>
+  <script src="{{ url_for('static', filename='overview.js') }}"></script>
+  <details style="margin-top:.6rem"><summary>{{ t('dash.table_view') }}</summary>
+    <div class="tablewrap"><table>
+      <tr><th>{{ t('r115.col_quarter') }}</th>{% for sr in chart.series %}<th class="num">{{ sr.label }}</th>{% endfor %}</tr>
+      {% for q in chart.quarters %}<tr><td>{{ q.label }}</td>{% for sr in chart.series %}<td class="num">{{ q.cells[sr.key].text }}</td>{% endfor %}</tr>{% endfor %}
+    </table></div>
+  </details>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ t('dash.renta_title', year=year) }}</h2>
+  <div class="tablewrap estimate"><table>
+    <tr><td>{{ t('dash.renta_net') }}</td><td>{{ renta.net_yield|eur }}</td></tr>
+    {% if renta.other_income %}<tr><td>{{ t('dash.renta_other') }}</td><td>{{ renta.other_income|eur }}</td></tr>{% endif %}
+    <tr><td>{{ t('dash.renta_tax') }}</td><td>{{ renta.tax|eur }}</td></tr>
+    <tr><td>{{ t('dash.renta_withheld') }}</td><td>−{{ renta.withholdings|eur }}</td></tr>
+    <tr><td>{{ t('dash.renta_advances') }}</td><td>−{{ renta.advances|eur }}</td></tr>
+    <tr class="total"><td>{{ t('dash.renta_to_pay') if renta.result >= 0 else t('dash.renta_refund') }}</td>
+      <td>{{ (renta.result if renta.result >= 0 else -renta.result)|eur }}</td></tr>
+  </table></div>
+  <p class="small muted" style="margin-bottom:0">{{ t('dash.renta_note') }}
+    {% if default_scale %}{{ t('dash.renta_default_scale') }}{% endif %}
+    <a href="{{ url_for('reports.renta', year=year) }}">{{ t('dash.renta_data') }}</a></p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ t('dash.upcoming') }}</h2>
+  {% if upcoming %}
+  <table>
+    <tr><th>{{ t('dash.col_model') }}</th><th>{{ t('dash.col_period') }}</th><th>{{ t('dash.col_due') }}</th><th>{{ t('dash.col_left') }}</th><th>{{ t('dash.col_status') }}</th><th></th></tr>
+    {% for f in upcoming %}
+    <tr>
+      <td>{{ f.model }} <span class="muted small">{{ model_title(f.model) }}</span></td>
+      <td>{{ f.period }} {{ f.year }}</td>
+      <td>{{ f.due_date|dmy }}</td>
+      <td>{{ t('common.days', n=f.days_left) }}</td>
+      <td><span class="badge {{ f.display }}">{{ t('status.' ~ f.display) }}</span></td>
+      <td class="num">
+        {% if f.model == '303' and f.quarter %}<a class="btn small" href="{{ url_for('reports.vat303', year=f.year, q=f.quarter) }}">{{ t('dash.calc') }}</a>{% endif %}
+        {% if f.model == '130' and f.quarter %}<a class="btn small" href="{{ url_for('reports.irpf130', year=f.year, q=f.quarter) }}">{{ t('dash.calc') }}</a>{% endif %}
+        {% if f.model == '100' %}<a class="btn small" href="{{ url_for('reports.renta', year=f.year) }}">{{ t('dash.calc') }}</a>{% endif %}
+        <form class="inline" method="post" action="{{ url_for('filings.mark', filing_id=f.id) }}">
+          <input type="hidden" name="action" value="filed"><input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="small">{{ t('common.filed_short') }}</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">{{ t('dash.no_upcoming') }} <a href="{{ url_for('filings.index') }}">{{ t('dash.full_calendar') }}</a></p>{% endif %}
+</div>
+
+<h2>{{ t('dash.current', q=q, year=year) }}</h2>
+<div class="grid">
+  {% if vat_registered %}
+  <div class="card kpi">
+    <div class="label">{{ t('dash.kpi_303') }}</div>
+    <div class="value">{{ vat.c71|eur }}</div>
+    <div class="small muted">{{ t('dash.kpi_303_sub', accrued=vat.c27|eur, deductible=vat.c45|eur) }}</div>
+    <a class="small" href="{{ url_for('reports.vat303', year=year, q=q) }}">{{ t('common.more') }}</a>
+  </div>
+  {% endif %}
+  <div class="card kpi">
+    <div class="label">{{ t('dash.kpi_130') }}</div>
+    <div class="value">{{ irpf.c19|eur }}</div>
+    <div class="small muted">{{ t('dash.kpi_130_sub', net=irpf.c03|eur) }}</div>
+    <a class="small" href="{{ url_for('reports.irpf130', year=year, q=q) }}">{{ t('common.more') }}</a>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1rem">
+  <a class="btn primary" href="{{ url_for('entries.new', kind='expense') }}">{{ t('dash.add_expense') }}</a>
+  <a class="btn primary" href="{{ url_for('entries.new', kind='income') }}">{{ t('dash.add_income') }}</a>
+  <span class="muted small">{{ t('dash.entries_count', year=year, n=entries_count) }}</span>
+</div>
+{% endblock %}

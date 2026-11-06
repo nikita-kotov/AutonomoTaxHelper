@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.filings') }}{% endblock %}
+{% block content %}
+<h1>Modelo {{ f.model }} · {{ f.period }} {{ f.year }}</h1>
+<form class="card" method="post" enctype="multipart/form-data">
+  <div class="formgrid">
+    <label>{{ t('dash.col_status') }}
+      <select name="status">
+        <option value="pending" {{ 'selected' if f.status == 'pending' }}>{{ t('status.pending') }}</option>
+        <option value="filed" {{ 'selected' if f.status == 'filed' }}>{{ t('status.filed') }}</option>
+        <option value="not_required" {{ 'selected' if f.status == 'not_required' }}>{{ t('status.not_required') }}</option>
+      </select></label>
+    <label>{{ t('filings.f_due') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="due_date" value="{{ f.due_date }}" required></label>
+    <label>{{ t('filing.filed_date') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="filed_date" value="{{ f.filed_date }}"></label>
+    <label>{{ t('filing.reference') }} <input name="reference" value="{{ f.reference }}"></label>
+    <label>{{ t('filing.result') }} <input name="result" value="{{ f.get('result', '') }}" inputmode="decimal"></label>
+    <label>{{ t('filing.pdf') }} <input type="file" name="document">
+      {% if f.document %}<span class="small"><a href="{{ url_for('system.document', name=f.document) }}" target="_blank">{{ t('filing.current_file') }}</a></span>{% endif %}</label>
+  </div>
+  <label>{{ t('form.notes') }} <textarea name="notes" rows="3">{{ f.notes }}</textarea></label>
+  <button class="primary">{{ t('common.save') }}</button>
+  <a class="btn" href="{{ url_for('filings.index') }}">{{ t('common.back') }}</a>
+  <button class="danger" type="submit" form="del" onclick="return confirm({{ t('filing.confirm_delete')|tojson }})">{{ t('common.delete') }}</button>
+</form>
+<form id="del" method="post" action="{{ url_for('filings.delete', filing_id=f.id) }}"></form>
+{% endblock %}

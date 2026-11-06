@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Modelo 115{% endblock %}
+{% block content %}
+<h1>Modelo 115 · {{ q }}T {{ year }}</h1>
+<div class="tabs">
+  {% for i in range(1,5) %}<a class="{{ 'active' if i == q }}" href="{{ url_for('reports.rent115', year=year, q=i) }}">{{ i }}T</a>{% endfor %}
+</div>
+<div class="note small">{{ t('r115.hint') }}</div>
+
+<div class="tablewrap"><table>
+  <tr><td><span class="casilla">01</span></td><td>{{ t('r115.col_payees') }}</td><td class="num">{{ rep.payees }}</td></tr>
+  <tr><td><span class="casilla">02</span></td><td>{{ t('r115.col_base') }}</td><td class="num">{{ rep.base|eur }}</td></tr>
+  <tr><td><span class="casilla">03</span></td><td>{{ t('r115.col_withheld') }}</td><td class="num">{{ rep.withheld|eur }}</td></tr>
+  <tr class="total"><td><span class="casilla">05</span></td><td>{{ t('r115.col_result') }}</td><td class="num">{{ rep.result|eur }}</td></tr>
+</table></div>
+{% if rep.other_withheld %}<div class="note warn">{{ t('r115.other', n=rep.other_withheld) }}</div>{% endif %}
+
+<h2>{{ t('r115.detail', period=q ~ 'T ' ~ year) }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('r115.col_date') }}</th><th>{{ t('r115.col_payee') }}</th><th>{{ t('r115.col_nif') }}</th>
+    <th class="num">{{ t('r115.col_base') }}</th><th class="num">{{ t('r115.col_withheld') }}</th></tr>
+  {% for e in rep.lines %}
+  <tr><td>{{ e.date|dmy }}</td><td>{{ e.counterparty }}</td><td>{{ e.vat_id }}</td>
+    <td class="num">{{ e.base_cents|eur }}</td><td class="num">{{ e.withholding_cents|eur }}</td></tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">{{ t('r115.empty') }}</td></tr>
+  {% endfor %}
+</table></div>
+
+<h2>{{ year }}</h2>
+<div class="tablewrap"><table>
+  <tr><th>{{ t('r115.col_quarter') }}</th><th class="num">{{ t('r115.col_payees') }}</th><th class="num">{{ t('r115.col_base') }}</th>
+    <th class="num">{{ t('r115.col_withheld') }}</th><th class="num">{{ t('r115.col_result') }}</th></tr>
+  {% for r in quarters %}
+  <tr><td><a href="{{ url_for('reports.rent115', year=year, q=r.quarter) }}">{{ r.quarter }}T</a></td><td class="num">{{ r.payees }}</td>
+    <td class="num">{{ r.base|eur }}</td><td class="num">{{ r.withheld|eur }}</td><td class="num">{{ r.result|eur }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

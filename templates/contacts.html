@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.contacts') }}{% endblock %}
+{% block content %}
+<h1>{{ t('contacts.title') }}</h1>
+<p class="muted small">{{ t('contacts.intro') }}</p>
+
+<div class="toolbar">
+  <a class="btn {{ 'primary' if not kind }}" href="{{ url_for('contacts.index') }}">{{ t('common.all') }}</a>
+  <a class="btn {{ 'primary' if kind == 'income' }}" href="{{ url_for('contacts.index', kind='income') }}">{{ t('contacts.clients') }}</a>
+  <a class="btn {{ 'primary' if kind == 'expense' }}" href="{{ url_for('contacts.index', kind='expense') }}">{{ t('contacts.suppliers') }}</a>
+  <span style="flex:1"></span>
+  <form class="inline" method="post" action="{{ url_for('contacts.from_entries') }}">
+    <button title="{{ t('contacts.from_entries_hint') }}">{{ t('contacts.from_entries') }}</button></form>
+  <a class="btn primary" href="{{ url_for('contacts.new', kind='income') }}">{{ t('contacts.add_client') }}</a>
+  <a class="btn primary" href="{{ url_for('contacts.new', kind='expense') }}">{{ t('contacts.add_supplier') }}</a>
+</div>
+
+<div class="tablewrap"><table>
+  <tr><th>{{ t('contacts.col_name') }}</th><th>{{ t('form.country') }}</th><th>{{ t('form.vat_id') }}</th>
+    <th>{{ t('contacts.col_defaults') }}</th><th class="num">{{ t('contacts.col_entries') }}</th><th></th></tr>
+  {% for c in rows %}
+  <tr>
+    <td>{% if c.kind == 'income' %}<span class="badge filed">{{ t('contacts.client') }}</span>{% else %}<span class="badge">{{ t('contacts.supplier') }}</span>{% endif %}
+      <strong>{{ c.name }}</strong>
+      {% if c.email %}<div class="small muted">{{ c.email }}</div>{% endif %}</td>
+    <td>{{ c.country }}</td>
+    <td>{{ c.vat_id }}</td>
+    <td class="small">
+      {% if c.regime %}<span class="badge">{{ t('regime.' ~ c.kind ~ '.' ~ c.regime ~ '.short') }}</span>{% endif %}
+      {% if c.category_id and cats.get(c.category_id) %}{{ cat_name(cats[c.category_id]) }}{% endif %}
+      {% if c.vat_rate %} IVA {{ c.vat_rate }}%{% endif %}
+      {% if c.withholding_rate %} IRPF {{ c.withholding_rate }}%{% endif %}
+    </td>
+    <td class="num">{{ usage.get(c.id, 0) }}</td>
+    <td class="num"><a class="btn small" href="{{ url_for('contacts.edit', contact_id=c.id) }}">{{ t('common.edit_short') }}</a></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">{{ t('contacts.empty') }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.categories') }}{% endblock %}
+{% block content %}
+<h1>{{ t('cats.title') }}</h1>
+<p class="muted small">{{ t('cats.intro') }}</p>
+
+<div class="tablewrap"><table>
+  <tr><th>{{ t('cats.col_name') }}</th><th>IRPF</th><th>IVA</th><th class="num">{{ t('cats.col_cap') }}</th><th>{{ t('cats.col_note') }}</th><th></th></tr>
+  {% for c in cats %}
+  <tr>
+    <td><input name="name" form="cf{{ c.id }}" value="{{ cat_name(c) }}"><div class="small muted">{{ t('cats.uses', n=usage.get(c.id, 0)) }}</div></td>
+    <td><select name="irpf_mode" form="cf{{ c.id }}">{% for k, v in IRPF_MODES.items() %}<option value="{{ k }}" {{ 'selected' if c.irpf_mode == k }}>{{ v }}</option>{% endfor %}</select></td>
+    <td><select name="vat_mode" form="cf{{ c.id }}">{% for k, v in VAT_MODES.items() %}<option value="{{ k }}" {{ 'selected' if c.vat_mode == k }}>{{ v }}</option>{% endfor %}</select></td>
+    <td><input name="annual_cap" form="cf{{ c.id }}" value="{{ '%.2f'|format(c.annual_cap_cents / 100) if c.annual_cap_cents is not none else '' }}" inputmode="decimal" placeholder="—" size="8"></td>
+    <td><input name="notes" form="cf{{ c.id }}" value="{{ cat_note(c) }}"></td>
+    <td class="num" style="white-space:nowrap"><button class="small" form="cf{{ c.id }}">{{ t('common.save') }}</button>
+      {% if not usage.get(c.id) %}<button class="small danger" form="cf{{ c.id }}" formaction="{{ url_for('categories.delete', category_id=c.id) }}" onclick="return confirm({{ t('cats.confirm_delete')|tojson }})">✕</button>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% for c in cats %}<form id="cf{{ c.id }}" method="post" action="{{ url_for('categories.update', category_id=c.id) }}"></form>{% endfor %}
+<p class="small muted">{{ t('cats.cap_hint') }}</p>
+
+<h2>{{ t('cats.new_title') }}</h2>
+<form class="card" method="post">
+  <div class="formgrid">
+    <label>{{ t('cats.col_name') }} <input name="name" required></label>
+    <label>IRPF <select name="irpf_mode">{% for k, v in IRPF_MODES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+    <label>IVA <select name="vat_mode">{% for k, v in VAT_MODES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+    <label>{{ t('cats.col_cap') }} <input name="annual_cap" inputmode="decimal" placeholder="—"></label>
+    <label>{{ t('cats.col_note') }} <input name="notes"></label>
+  </div>
+  <button class="primary">{{ t('common.add') }}</button>
+</form>
+{% endblock %}
