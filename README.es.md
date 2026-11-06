@@ -137,8 +137,6 @@ Si la aplicación le ahorra tiempo, puede darle las gracias con un pago voluntar
 
 Copyright (C) 2026 Nikita Kotov. Autonomo Tax Helper es software libre bajo la **GNU Affero General Public License v3.0 o posterior** (véase [LICENSE](LICENSE)): puede usarlo, estudiarlo, modificarlo y compartirlo. Si distribuye una versión modificada, o permite que otros la usen como servicio de red, debe entregarles el código fuente con la misma licencia.
 
-El software se ofrece **tal cual, sin garantía**.
+## Exención de responsabilidad
 
-## Antes de presentar
-
-Punto de control: compare las cifras finales con su gestor o con el prerrellenado de la AEAT.
+El software se ofrece **tal cual, sin garantía de ningún tipo** (véase [LICENSE](LICENSE)). No constituye asesoramiento fiscal ni jurídico, y el autor no responde de los errores en las cifras, los ficheros o las declaraciones elaborados con él. Usted es responsable de los datos que introduce y de lo que presenta: antes de presentar, compare las cifras finales con su gestor o con el prerrellenado de la AEAT.

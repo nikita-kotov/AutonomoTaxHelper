@@ -47,7 +47,7 @@ def build_file(settings: Settings, reports: TaxReports, model: str, year: int, q
     account = settings.holder_iban.replace(" ", "").upper()
     iban = account if settings.uses_direct_debit else ""
     if iban and not is_valid_iban(iban):
-        raise UserError("err.iban_invalid")  # the AEAT refuses the file at submission (error 2917), the validator does not
+        raise UserError("err.iban_invalid")  # the AEAT refuses a malformed IBAN (error 2917)
     if model == "130":
         rep = reports.irpf_year(year, quarter)[-1]
         tipo = model130.declaration_type(rep, iban)

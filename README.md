@@ -137,8 +137,6 @@ If the app saves you time, you can say thanks with a voluntary payment: **[Suppo
 
 Copyright (C) 2026 Nikita Kotov. Autonomo Tax Helper is free software under the **GNU Affero General Public License v3.0 or later** (see [LICENSE](LICENSE)): you may use, study, change and share it. If you distribute a modified version, or let others use it as a network service, you must give them the source code under the same license.
 
-The software is provided **as is, without warranty**.
+## Disclaimer
 
-## Before filing
-
-Checkpoint: compare the final figures with your gestor or with the AEAT pre-fill.
+The software is provided **as is, without warranty of any kind** (see [LICENSE](LICENSE)). It is not tax or legal advice, and the author is not liable for errors in the figures, files or declarations produced with it. You are responsible for the data you enter and for what you file: check the final figures with your gestor or with the AEAT pre-fill before filing.
