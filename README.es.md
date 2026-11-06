@@ -5,18 +5,19 @@
 Aplicación web local para autónomos: contabilidad de ingresos y gastos, cálculo del **modelo 303** (IVA), del **modelo 130** (IRPF), datos para la **Renta (modelo 100)** y un seguimiento de declaraciones con plazos y estados.
 El servidor escucha solo en `127.0.0.1` y los datos se quedan en su ordenador. La interfaz está disponible en español, inglés y ruso.
 
-## Inicio rápido
+## Contenido
 
-Doble clic en `run.bat`: la aplicación arranca en segundo plano con un icono en la bandeja del sistema (sin ventana de consola) y se abre en el navegador en <http://127.0.0.1:5057/>. Doble clic en el icono vuelve a abrir la página; su menú (clic derecho) también abre la carpeta de datos y detiene la aplicación. **Salir** en la barra superior de la página la detiene igualmente. Si ya está en marcha, `run.bat` solo abre la página. Los problemas de arranque se escriben en `app.log` en la carpeta de datos.
-
-Primeros pasos en la aplicación: **Ajustes** → NIF/NIE, apellidos y nombre (tal como figuran en el censo de la AEAT), fecha de inicio de la actividad, forma de pago, porcentaje de afectación de la vivienda del modelo 036 → **Operaciones** → primer gasto.
-
-## Datos y privacidad
-
-La base de datos y los documentos (`taxhelper.db`, `documents/`) contienen registros financieros, su NIF y facturas, por eso se guardan en su perfil de usuario:
-
-- **Ubicación:** Windows `%LOCALAPPDATA%\TaxHelper`, macOS `~/Library/Application Support/TaxHelper`, Linux `~/.local/share/taxhelper`. Otra ubicación se indica con la variable de entorno `TAXHELPER_DATA`.
-- Los datos solo salen de su ordenador si usted lo decide: las copias van a la carpeta elegida y el botón de validación envía el fichero generado al servicio de pruebas de la AEAT.
+- [Funciones](#funciones)
+- [Alcance y estado](#alcance-y-estado)
+- [Instalación e inicio](#instalación-e-inicio)
+- [Guías](#guías)
+- [Qué se configura para cada autónomo](#qué-se-configura-para-cada-autónomo)
+- [Datos, privacidad y copias de seguridad](#datos-privacidad-y-copias-de-seguridad)
+- [Idiomas de la interfaz](#idiomas-de-la-interfaz)
+- [Desarrollo](#desarrollo)
+- [Apoyar al autor](#apoyar-al-autor)
+- [Licencia](#licencia)
+- [Exención de responsabilidad](#exención-de-responsabilidad)
 
 ## Funciones
 
@@ -31,37 +32,40 @@ La base de datos y los documentos (`taxhelper.db`, `documents/`) contienen regis
 | 115 | Opcional: IRPF que usted retiene al arrendador de un local, por trimestre: perceptores, base, retenciones e importe a ingresar |
 | Renta | Ingresos, gastos por categoría, rendimiento neto, reducción opcional del 20 % por inicio de actividad, retenciones y pagos fraccionados ingresados |
 | Declaraciones | Calendario de 303, 130, 390, Renta y modelos propios; estados presentado / pendiente / vencido, fecha, justificante, PDF; resumen en el panel; restauración de las entradas estándar eliminadas |
-| Ficheros AEAT | Generación de los ficheros 130 y 303 en el formato oficial y validación en el servicio de pruebas de la AEAT |
+| Ficheros AEAT | Generación de los ficheros 130 y 303 en el formato oficial, validación en el servicio de la AEAT y envío al entorno de pruebas de la AEAT |
 | Ajustes y categorías | Perfil del contribuyente, reglas de deducción, límites anuales por categoría, copias de seguridad |
 
-Alcance de esta versión: IVA régimen general, periodos trimestrales, estimación directa, territorio común.
+## Alcance y estado
 
-## Introducción de importes
+**Alcance.** IVA régimen general, periodos trimestrales, estimación directa, territorio común.
+
+**Estado.** Versión temprana. Los ficheros del 130 y del 303 se generan y se validan en el servicio de la AEAT. El envío a la AEAT está implementado solo para el entorno de pruebas: está cubierto por tests, pero todavía no se ha probado en el servidor de pruebas real, y el envío al entorno de producción no está activado.
+
+## Instalación e inicio
+
+**Requisitos.** Python 3.12. En Windows, `run.bat` crea el entorno virtual e instala los paquetes en el primer inicio. En macOS y Linux ejecute `pip install -r requirements.txt` y `python app.py`. Firmar declaraciones con certificado (la página Presentación) solo funciona en Windows.
+
+Doble clic en `run.bat`: la aplicación arranca en segundo plano con un icono en la bandeja del sistema (sin ventana de consola) y se abre en el navegador en <http://127.0.0.1:5057/>. Doble clic en el icono vuelve a abrir la página; su menú (clic derecho) también abre la carpeta de datos y detiene la aplicación. **Salir** en la barra superior de la página la detiene igualmente. Si ya está en marcha, `run.bat` solo abre la página. Los problemas de arranque se escriben en `app.log` en la carpeta de datos.
+
+Primeros pasos en la aplicación: **Ajustes** → NIF/NIE, apellidos y nombre (tal como figuran en el censo de la AEAT), fecha de inicio de la actividad, forma de pago, porcentaje de afectación de la vivienda del modelo 036 → **Operaciones** → primer gasto.
+
+## Guías
+
+### Introducción de importes
 
 Escriba los importes como lo hace el idioma de la interfaz: `1.234,56` (ruso, español) o `1,234.56` (inglés). Si hay un solo separador seguido de exactamente tres cifras (`1.500`), se interpreta como separador de miles cuando no coincide con el signo decimal de su idioma: en la interfaz en español `1.500` significa 1 500 €, y `1,5` significa 1,50 €. Con dos separadores distintos no hay ambigüedad: el último es el decimal.
 
-## Clientes y proveedores
+### Clientes y proveedores
 
 **Contactos** guarda las empresas y personas a las que factura o a las que compra: nombre, país, NIF, dirección, correo y los valores de los que debe partir una operación nueva (tratamiento del IVA, categoría, tipo de IVA, retención de IRPF, descripción). En el formulario de la operación, al escribir un nombre guardado se rellenan esos campos, salvo los que ya haya cambiado a mano. Una operación nueva puede guardar su contraparte como contacto con una casilla, **Añadir desde operaciones** crea un contacto por cada nombre que ya está en el libro, y la importación de CSV toma las celdas vacías del contacto guardado con el mismo nombre.
 
-## Importación de operaciones desde CSV
+### Importación de operaciones desde CSV
 
 **Operaciones → Importar CSV** acepta un archivo con una fila por factura y muestra una vista previa antes de guardar nada: cada fila se marca como lista, duplicada (misma fecha, contraparte, número e importe que una operación existente o una fila anterior) o con error y su motivo, y usted marca las filas que se importan. Las filas se validan con las mismas reglas que el formulario, la importación es todo o nada y a las filas en divisa extranjera se les asigna el tipo del BCE de la fecha de la factura.
 
 Columnas obligatorias: `date` y `base` (o `orig_amount` con `currency`); las demás son opcionales y las celdas vacías toman los valores de Ajustes: `kind` (expense o income), `number`, `counterparty`, `country`, `vat_id`, `description`, `category` (código o nombre, obligatoria en gastos), `regime`, `vat_rate`, `vat_amount`, `withholding_rate`, `notes`. Fechas `AAAA-MM-DD` o `DD/MM/AAAA`, importes como `1234.56`, separador `;`, `,` o tabulador. En la página de importación se descarga una plantilla, y el CSV que exporta la propia aplicación se puede volver a leer.
 
-## Libros para Renta WEB, modelo 130 y Pre303
-
-**Libros registro** genera los libros unificados de IVA e IRPF en un único archivo `.xlsx` con el formato publicado por la AEAT (hojas `EXPEDIDAS_INGRESOS` y `RECIBIDAS_GASTOS`, nombre del archivo `<año><NIF>T<nombre>.xlsx`). El mismo archivo lo importan:
-
-- **Renta WEB**: Rendimientos de actividades económicas en estimación directa → *Importar Libros Registro* (todo el año, 4T). Rellena los ingresos, los gastos deducibles y las retenciones.
-- **Modelo 130** y **Pre303 (303)**: el botón *Importar Libros Registro* del formulario, con las operaciones desde el 1 de enero hasta el final del trimestre (el trimestre se elige en la página).
-
-El botón **Validar el archivo en el servicio de la AEAT** envía el archivo al validador de libros de la AEAT y muestra su veredicto y los periodos que acepta. Antes del primer uso, indique en **Ajustes** la clave de actividad y el grupo o epígrafe del IAE (el epígrafe sin el prefijo de sección: `763`, no `2*763`).
-
-Cómo se convierten las operaciones en líneas de los libros: el gasto deducible es el importe que la aplicación ya usa para el 130 (con las proporciones de la oficina en casa y los límites por categoría); cada categoría corresponde a un concepto de gasto de la AEAT (por ejemplo servicios profesionales `G19`, Seguridad Social del titular `G45`, alquiler `G12`, electricidad `G14`); las compras con inversión del sujeto pasivo llevan el IVA autorrepercutido; los gastos sin IVA (Seguridad Social, recibos de alquiler) se registran como justificantes contables (`F6`); una factura cuyo IVA cubre solo una parte se divide en dos líneas. La página enumera lo que conviene completar antes de importar, por ejemplo un número de factura que falta o el identificador de un proveedor extranjero, que exige la AEAT.
-
-## Facturas en divisa extranjera
+### Facturas en divisa extranjera
 
 Para una divisa distinta del EUR, el formulario de la operación muestra «Importe en la divisa de la factura» y «Cambio (unidades por 1 EUR)». La base en euros es importe ÷ cambio, redondeada al céntimo, y interviene en todos los cálculos fiscales. Puede corregirla a mano: si difiere de la conversión, la aplicación avisa y conserva lo que escribió.
 
@@ -69,19 +73,7 @@ Para una divisa distinta del EUR, el formulario de la operación muestra «Impor
 - **Qué se guarda:** divisa, importe en divisa, tipo, fecha del tipo y origen (`ecb` o `manual`); todo es visible en la lista de operaciones y en el CSV.
 - **Base.** Para el IVA (art. 79 LIVA) la base se convierte al tipo vendedor del Banco de España en la fecha del devengo, normalmente la de la factura. El Banco de España publica su tipo a partir del tipo de referencia del BCE, por lo que las cifras suelen coincidir.
 
-## Ficheros para la AEAT y validación
-
-En las páginas **303** y **130** hay una tarjeta **«Fichero para la AEAT y validación»**:
-
-1. La aplicación genera el fichero de longitud fija según el *diseño de registro* oficial (130: «Ejercicios 2019 y siguientes», 303: «Ejercicio 2026 y siguientes»).
-2. El botón «Validar el archivo en el servicio de la AEAT» lo envía a `ServValiDos`. La respuesta es un PDF con el formulario prerrellenado o una lista de errores con códigos.
-3. «Descargar fichero» entrega `NIF-año-periodo.130` o `.303` para subirlo a la Sede.
-
-El resultado de la validación está ligado al contenido del fichero: si cambian los datos, la tarjeta lo marca como desactualizado. La validación necesita NIF/NIE, apellidos y nombre en Ajustes tal como figuran en el censo de la AEAT.
-
-El fichero 303 contiene las páginas 01 (régimen general), 03 (información adicional y resultado) y DID (cuenta bancaria).
-
-## Oficina en casa y suscripciones
+### Oficina en casa y suscripciones
 
 - **Suscripciones de IA y SaaS** van a la categoría «Software y suscripciones», 100 % gasto de IRPF. El IVA depende del régimen de la factura:
   - proveedor español con IVA → «Proveedor español», el IVA se deduce;
@@ -96,6 +88,38 @@ El fichero 303 contiene las páginas 01 (régimen general), 03 (información adi
 - **IVA de suministros** es un ajuste aparte: por defecto IVA × % de afectación, con la opción «IVA × % de afectación × 30 %».
 - El IVA no recuperable se incluye en el gasto de IRPF.
 
+### Ficheros para la AEAT y validación
+
+En las páginas **303** y **130** hay una tarjeta **«Fichero para la AEAT y validación»**:
+
+1. La aplicación genera el fichero de longitud fija según el *diseño de registro* oficial (130: «Ejercicios 2019 y siguientes», 303: «Ejercicio 2026 y siguientes»).
+2. El botón «Validar el archivo en el servicio de la AEAT» lo envía a `ServValiDos`. La respuesta es un PDF con el formulario prerrellenado o una lista de errores con códigos.
+3. «Descargar fichero» entrega `NIF-año-periodo.130` o `.303` para subirlo a la Sede.
+
+El resultado de la validación está ligado al contenido del fichero: si cambian los datos, la tarjeta lo marca como desactualizado. La validación necesita NIF/NIE, apellidos y nombre en Ajustes tal como figuran en el censo de la AEAT.
+
+El fichero 303 contiene las páginas 01 (régimen general), 03 (información adicional y resultado) y DID (cuenta bancaria).
+
+### Libros para Renta WEB, modelo 130 y Pre303
+
+**Libros registro** genera los libros unificados de IVA e IRPF en un único archivo `.xlsx` con el formato publicado por la AEAT (hojas `EXPEDIDAS_INGRESOS` y `RECIBIDAS_GASTOS`, nombre del archivo `<año><NIF>T<nombre>.xlsx`). El mismo archivo lo importan:
+
+- **Renta WEB**: Rendimientos de actividades económicas en estimación directa → *Importar Libros Registro* (todo el año, 4T). Rellena los ingresos, los gastos deducibles y las retenciones.
+- **Modelo 130** y **Pre303 (303)**: el botón *Importar Libros Registro* del formulario, con las operaciones desde el 1 de enero hasta el final del trimestre (el trimestre se elige en la página).
+
+El botón **Validar el archivo en el servicio de la AEAT** envía el archivo al validador de libros de la AEAT y muestra su veredicto y los periodos que acepta. Antes del primer uso, indique en **Ajustes** la clave de actividad y el grupo o epígrafe del IAE (el epígrafe sin el prefijo de sección: `763`, no `2*763`).
+
+Cómo se convierten las operaciones en líneas de los libros: el gasto deducible es el importe que la aplicación ya usa para el 130 (con las proporciones de la oficina en casa y los límites por categoría); cada categoría corresponde a un concepto de gasto de la AEAT (por ejemplo servicios profesionales `G19`, Seguridad Social del titular `G45`, alquiler `G12`, electricidad `G14`); las compras con inversión del sujeto pasivo llevan el IVA autorrepercutido; los gastos sin IVA (Seguridad Social, recibos de alquiler) se registran como justificantes contables (`F6`); una factura cuyo IVA cubre solo una parte se divide en dos líneas. La página enumera lo que conviene completar antes de importar, por ejemplo un número de factura que falta o el identificador de un proveedor extranjero, que exige la AEAT.
+
+### Presentación a la AEAT (entorno de pruebas)
+
+A diferencia de la validación anterior, que solo comprueba un fichero y no necesita certificado, **Presentación** envía la declaración. Solo está disponible para el **entorno de pruebas** de la AEAT (`prewww1.aeat.es`), donde no tiene efecto legal.
+
+- **Certificado.** Solo Windows. Elija su certificado digital del almacén de Windows en la página Presentación; Windows firma la conexión (y puede pedir el PIN). El titular del certificado debe ser el contribuyente de los ajustes.
+- **Controles.** El archivo debe haberse validado en el servicio de la AEAT en su forma actual, el certificado debe estar vigente, y una pantalla de revisión muestra las cifras y exige una confirmación explícita. Una declaración con pago pide el NRC del pago.
+- **Resultado.** La respuesta (código seguro de verificación, número de justificante, avisos o errores) y el PDF del justificante, si la AEAT lo ofrece, se guardan en la lista de declaraciones enviadas.
+- **Reglas del entorno de pruebas.** Responde en días laborables de 8:00 a 15:00 (hora de España); tras una prueba correcta de un periodo, las siguientes pruebas de ese periodo deben ser declaraciones complementarias, así que use otro periodo para la siguiente prueba. La dirección de producción no está habilitada en esta versión.
+
 ## Qué se configura para cada autónomo
 
 | Dónde | Parámetro |
@@ -108,16 +132,16 @@ El fichero 303 contiene las páginas 01 (régimen general), 03 (información adi
 | Categorías | modos de IRPF e IVA, límite anual de deducción (por ejemplo, seguro médico 500 € por persona), nombres, notas, categorías propias |
 | Declaraciones | cualquier plazo se edita a mano y no se recalcula; modelos propios |
 
-## Presentación a la AEAT (entorno de pruebas)
+## Datos, privacidad y copias de seguridad
 
-**Presentación** envía los modelos 130 y 303 al **entorno de pruebas** de la AEAT (`prewww1.aeat.es`), donde nada tiene efecto legal, para probar todo el camino antes de una presentación real: certificado, petición, respuesta, justificante.
+### Dónde están los datos
 
-- **Certificado.** Solo Windows. Elija su certificado digital del almacén de Windows en la página Presentación; Windows firma la conexión (y puede pedir el PIN). El titular del certificado debe ser el contribuyente de los ajustes.
-- **Controles.** El archivo debe haberse validado en el servicio de la AEAT en su forma actual, el certificado debe estar vigente, y una pantalla de revisión muestra las cifras y exige una confirmación explícita. Una declaración con pago pide el NRC del pago.
-- **Resultado.** La respuesta (código seguro de verificación, número de justificante, avisos o errores) y el PDF del justificante, si la AEAT lo ofrece, se guardan en la lista de declaraciones enviadas.
-- **Reglas del entorno de pruebas.** Responde en días laborables de 8:00 a 15:00 (hora de España); tras una prueba correcta de un periodo, las siguientes pruebas de ese periodo deben ser declaraciones complementarias, así que use otro periodo para la siguiente prueba. La dirección de producción no está habilitada en esta versión.
+La base de datos y los documentos (`taxhelper.db`, `documents/`) contienen registros financieros, su NIF y facturas, por eso se guardan en su perfil de usuario:
 
-## Copias de seguridad
+- **Ubicación:** Windows `%LOCALAPPDATA%\TaxHelper`, macOS `~/Library/Application Support/TaxHelper`, Linux `~/.local/share/taxhelper`. Otra ubicación se indica con la variable de entorno `TAXHELPER_DATA`.
+- Los datos solo salen de su ordenador si usted lo decide: las copias van a la carpeta elegida y los botones de validación y de presentación envían el fichero generado a la AEAT.
+
+### Copias de seguridad
 
 1. **Ajustes** → **Copia de seguridad** → la carpeta que prefiera, por ejemplo `D:\Backups\TaxHelper`.
 2. La aplicación guarda allí `taxhelper-backup-AAAAMMDD-HHMM.zip` (base de datos y documentos) al arrancar y tras cambiar datos, como máximo cada 6 horas; tras un intento fallido, el siguiente espera al menos 15 minutos. Se conservan las 30 copias más recientes y la primera de cada mes.
@@ -128,6 +152,10 @@ El fichero 303 contiene las páginas 01 (régimen general), 03 (información adi
 ## Idiomas de la interfaz
 
 Español, inglés, ruso. El idioma se elige en la cabecera o en **Ajustes → Idioma** («automático» sigue el idioma del navegador, con el inglés como alternativa). El formato de fechas e importes depende del idioma: `1 234,56 €`, `€1,234.56`, `1.234,56 €`.
+
+## Desarrollo
+
+Instale los paquetes con `pip install -r requirements.txt` y ejecute los tests con `pytest`; usan su propia carpeta de datos vacía. La aplicación es el paquete `taxhelper`: `calc.py` contiene las reglas fiscales, `aeat/` los ficheros de la AEAT y el envío, `web/` las vistas y formularios de Flask; todos los textos de la interfaz están en `locales/`. Se agradecen informes de errores y pull requests.
 
 ## Apoyar al autor
 
