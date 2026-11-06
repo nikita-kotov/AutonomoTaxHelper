@@ -167,7 +167,7 @@ def test_the_activity_start_refuses_a_five_digit_year(client):
     from tests.support import load_settings
     from tests.test_profile import form
     page = text(client.post("/settings", data=form(activity_start="12345-01-23")))
-    assert "start date" in page.lower() or "activity" in page.lower()
+    assert "Invalid activity start date" in page
     assert load_settings().activity_start is None
     client.post("/settings", data=form(activity_start="2026-01-23"))
     assert str(load_settings().activity_start) == "2026-01-23"

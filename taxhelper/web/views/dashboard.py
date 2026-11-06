@@ -24,15 +24,13 @@ def index():
     entries = s.reports.year_entries(year)
     annual = s.reports.annual(year)
     overview = s.reports.overview(year)
-    paid_130 = {int(f["period"][0]): f["result_cents"] for f in s.filings.for_year_model(year, "130")
-                if f["status"] == "filed" and f["result_cents"] is not None and f["period"][:1].isdigit()}
     open_filings = [f for f in s.calendar.rows(pending_only=True) if f["display"] in ("overdue", "due_soon", "open")]
     return render_template(
         "dashboard.html",
         vat=s.reports.vat_year(year, quarter)[-1], irpf=s.reports.irpf_year(year, quarter)[-1],
         annual=annual, q=quarter, overview=overview, chart=_chart(overview, settings.vat_registered),
         taxes_total=sum(r.irpf + r.vat for r in overview),
-        renta=s.reports.renta_estimate(year, paid_130, quarter), default_scale=not settings.regional_scale,
+        renta=s.reports.renta_estimate(year, s.filings.filed_results(year, "130"), quarter), default_scale=not settings.regional_scale,
         overdue=[f for f in open_filings if f["display"] == "overdue"],
         upcoming=[f for f in open_filings if f["display"] != "overdue"][:6],
         notes=_notes(settings, entries), entries_count=len(entries), vat_registered=settings.vat_registered)

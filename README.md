@@ -122,7 +122,7 @@ Unlike the validation above, which only checks a file and needs no certificate, 
 - **Certificate.** Windows only. Pick your digital certificate from the Windows store on the Submission page; Windows signs the connection (and may ask for the PIN). The certificate holder must be the taxpayer of the settings.
 - **Gates.** The file must have been validated in the AEAT service in its current form, the certificate must be valid, and a review screen shows the figures and asks for an explicit confirmation. A declaration with a payment asks for the NRC of the payment.
 - **Result.** The answer (secure verification code, receipt number, warnings or errors) and the receipt PDF, when AEAT provides it, are kept in the list of sent declarations.
-- **Test environment rules.** It answers on working days from 8:00 to 15:00 (Spain); after a successful test of a period, further tests for that period must be complementary declarations, so use another period for the next test. The production address is not enabled in this version.
+- **Test environment rules.** It answers on working days from 8:00 to 15:00 (Spain); after a successful test of a period, further tests for that period must be complementary declarations, so use another period for the next test.
 
 ## What can be configured per autónomo
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-from . import calc, renta
+from . import calc, rent115, renta
 from .repositories import EntryRepository
 from .settings import SettingsRepository
 
@@ -82,9 +82,9 @@ class TaxReports:
             annual.net_yield_reduced, settings.renta_other_income_cents, settings.renta_personal_minimum_cents,
             annual.withholdings, advances, settings.regional_scale)
 
-    def rent115(self, year: int) -> List[calc.Rent115]:
+    def retentions_115(self, year: int) -> List[rent115.Rent115]:
         """Modelo 115 (retentions on rent) for the four quarters of the year; each quarter stands alone."""
-        return calc.build_115_year(self.year_entries(year), year)
+        return rent115.build_115_year(self.year_entries(year), year)
 
     def annual(self, year: int) -> calc.Annual:
         return calc.build_annual(self.year_entries(year), self.tax_settings, year, self.settings.carry_in(year))

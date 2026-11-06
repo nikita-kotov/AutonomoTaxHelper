@@ -61,7 +61,7 @@ class Settings:
     difficult_pct: Decimal = Decimal("0.05")  # a fraction
     difficult_cap_cents: int = 200_000
     prev_year_net_yield_cents: Optional[int] = None
-    start_reduction: bool = False  # 20 % reduction for starting an activity, Renta only; the user decides
+    start_reduction: bool = False  # 20 % reduction for starting an activity, Renta only
     start_reduction_year: int = 0  # first year with a positive net yield; 0 = the year of the activity start
     # estimate of the annual Renta on the dashboard
     renta_personal_minimum_cents: int = renta.DEFAULT_PERSONAL_MINIMUM_CENTS

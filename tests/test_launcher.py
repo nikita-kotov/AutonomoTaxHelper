@@ -32,7 +32,7 @@ def test_exit_button_stops_the_server_and_says_so(fresh_app):
     client = fresh_app.test_client()
     assert 'action="/quit"' in client.get("/").get_data(as_text=True)
     page = client.post("/quit", headers={"Sec-Fetch-Site": "same-origin"}).get_data(as_text=True)
-    assert "run.bat" in page or "stopped" in page.lower() or "остановлен" in page
+    assert "has stopped" in page
     assert server.stopped.wait(2)
 
 

@@ -39,7 +39,7 @@ def rent115():
     s = svc()
     year = current_year()
     q = quarter_arg(request.args, calc.quarter_of(date.today()))
-    quarters = s.reports.rent115(year)
+    quarters = s.reports.retentions_115(year)
     return render_template("report_115.html", quarters=quarters, rep=quarters[q - 1], q=q)
 
 

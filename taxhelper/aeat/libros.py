@@ -94,7 +94,7 @@ def _clip(text: str, limit: int, label: str, what: str, warnings: List[Msg]) -> 
 
 
 # A supplier outside Spain that prints no tax ID on its invoices: the books still need an identification, and this
-# placeholder is what gestors use for it. The books page reminds the user that it is not a real number.
+# placeholder is what gestors use for it.
 PLACEHOLDER_ID = "9999999"
 
 

@@ -1,7 +1,7 @@
 """Modelo 115 (retentions on rent the user withholds) and the optional 20 % start-of-activity reduction."""
 from datetime import date
 
-from taxhelper import calc, db, deadlines
+from taxhelper import calc, db, deadlines, rent115
 from taxhelper.repositories import EntryRepository
 from tests.support import category_id, load_settings, set_settings, text
 from tests.test_profile import form
@@ -40,7 +40,7 @@ def test_retention_does_not_touch_income_withholding_in_130_or_the_rent_cost(cli
     expense(client, "2026-02-12", "100", category="software", rate="0", name="Saas", nif="")
     year = calc.build_130_year(entries(), load_settings().tax(), 2026)
     assert year[0].c06 == 0  # only income withholdings are "retenciones soportadas"
-    assert year[0].c02 == 100000 + 10000 + 0 or year[0].c02 >= 110000  # both expenses are costs in full
+    assert year[0].expenses_gross == 110_000  # both expenses are costs in full: the rent and the software
 
 
 def test_115_report_sums_rent_with_a_retention_per_quarter(client):
@@ -48,7 +48,7 @@ def test_115_report_sums_rent_with_a_retention_per_quarter(client):
     expense(client, "2026-02-15", "1000")
     expense(client, "2026-03-15", "500", name="Other Landlord", nif="A87654321")
     expense(client, "2026-04-15", "1000")
-    q = calc.build_115_year(entries(), 2026)
+    q = rent115.build_115_year(entries(), 2026)
     assert (q[0].payees, q[0].base, q[0].withheld, q[0].result) == (2, 250000, 47500, 47500)
     assert (q[1].payees, q[1].base, q[1].withheld) == (1, 100000, 19000)
     assert q[2].withheld == 0 and q[3].payees == 0
@@ -57,18 +57,18 @@ def test_115_report_sums_rent_with_a_retention_per_quarter(client):
 def test_one_landlord_is_counted_once_by_nif_even_if_the_name_varies(client):
     expense(client, "2026-01-15", "1000", name="Landlord SL", nif="b12345678")
     expense(client, "2026-02-15", "1000", name="LANDLORD, S.L.", nif="B12345678")
-    assert calc.build_115_year(entries(), 2026)[0].payees == 1
+    assert rent115.build_115_year(entries(), 2026)[0].payees == 1
 
 
 def test_a_retention_on_something_that_is_not_rent_is_reported_not_added(client):
     expense(client, "2026-01-15", "1000", category="professional", rate="15", name="Freelancer", nif="12345678Z")
-    q = calc.build_115_year(entries(), 2026)[0]
+    q = rent115.build_115_year(entries(), 2026)[0]
     assert q.withheld == 0 and q.other_withheld == 1
 
 
 def test_the_home_rent_category_with_a_retention_counts_too(client):
     expense(client, "2026-01-15", "1000", category="rent")
-    assert calc.build_115_year(entries(), 2026)[0].withheld == 19000
+    assert rent115.build_115_year(entries(), 2026)[0].withheld == 19000
 
 
 def test_115_page_and_nav_link_appear_only_when_the_model_is_tracked(client):

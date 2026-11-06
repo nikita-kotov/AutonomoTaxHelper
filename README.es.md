@@ -122,7 +122,7 @@ A diferencia de la validación anterior, que solo comprueba un fichero y no nece
 - **Certificado.** Solo Windows. Elija su certificado digital del almacén de Windows en la página Presentación; Windows firma la conexión (y puede pedir el PIN). El titular del certificado debe ser el contribuyente de los ajustes.
 - **Controles.** El archivo debe haberse validado en el servicio de la AEAT en su forma actual, el certificado debe estar vigente, y una pantalla de revisión muestra las cifras y exige una confirmación explícita. Una declaración con pago pide el NRC del pago.
 - **Resultado.** La respuesta (código seguro de verificación, número de justificante, avisos o errores) y el PDF del justificante, si la AEAT lo ofrece, se guardan en la lista de declaraciones enviadas.
-- **Reglas del entorno de pruebas.** Responde en días laborables de 8:00 a 15:00 (hora de España); tras una prueba correcta de un periodo, las siguientes pruebas de ese periodo deben ser declaraciones complementarias, así que use otro periodo para la siguiente prueba. La dirección de producción no está habilitada en esta versión.
+- **Reglas del entorno de pruebas.** Responde en días laborables de 8:00 a 15:00 (hora de España); tras una prueba correcta de un periodo, las siguientes pruebas de ese periodo deben ser declaraciones complementarias, así que use otro periodo para la siguiente prueba.
 
 ## Qué se configura para cada autónomo
 

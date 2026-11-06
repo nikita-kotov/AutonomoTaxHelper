@@ -277,6 +277,11 @@ class FilingRepository:
     def for_year_model(self, year: int, model: str) -> List[sqlite3.Row]:
         return self.con.execute("SELECT * FROM filings WHERE year = ? AND model = ? ORDER BY period", (year, model)).fetchall()
 
+    def filed_results(self, year: int, model: str) -> Dict[int, int]:
+        """{quarter: result in cents} of the quarterly filings of a model that are filed and have a result."""
+        return {int(f["period"][0]): f["result_cents"] for f in self.for_year_model(year, model)
+                if f["status"] == "filed" and f["result_cents"] is not None and f["period"][:1].isdigit()}
+
     def default_rows(self, year: int) -> List[sqlite3.Row]:
         """Rows of the models the tracker creates by itself."""
         marks = ",".join("?" * len(deadlines.KNOWN_MODELS))

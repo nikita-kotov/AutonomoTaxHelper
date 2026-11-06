@@ -38,7 +38,7 @@ def test_template_is_downloadable_and_previews_cleanly(client):
 
 def test_preview_shows_amounts_and_converts_foreign_currency(client):
     page = text(preview(client, GOOD))
-    assert "59.00" in page.replace("€", "") or "€59.00" in page
+    assert "59.00" in page
     assert "1.1" in page  # the USD row shows its rate
     assert stored() == []  # a preview writes nothing
 
