@@ -88,6 +88,10 @@ Para una divisa distinta del EUR, el formulario de la operación muestra «Impor
 - **IVA de suministros** es un ajuste aparte: por defecto IVA × % de afectación, con la opción «IVA × % de afectación × 30 %».
 - El IVA no recuperable se incluye en el gasto de IRPF.
 
+### Categorías de gastos
+
+Cada gasto pertenece a una categoría, y la categoría decide cómo llega a las cifras fiscales: la regla de IRPF (íntegro, suministros de la vivienda, alquiler e IBI de la vivienda o no deducible), el tratamiento del IVA, un límite anual de deducción opcional (por ejemplo, seguro médico, 500 € por persona) y el concepto de gasto en los libros de la AEAT. Las categorías estándar cubren los gastos habituales de un autónomo, así que la mayoría no tiene que cambiarlas. En **Ajustes → Categorías de gastos** puede fijar un límite, cambiar una regla o añadir una categoría propia: tendrá su propia línea en el desglose de la Renta y en los libros de la AEAT aparecerá como otro gasto deducible.
+
 ### Ficheros para la AEAT y validación
 
 En las páginas **303** y **130** hay una tarjeta **«Fichero para la AEAT y validación»**:

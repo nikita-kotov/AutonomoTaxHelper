@@ -88,6 +88,10 @@ For an invoice currency other than EUR the entry form shows "Amount in invoice c
 - **IVA on supplies** is a separate setting: by default IVA × affected %, with an "IVA × affected % × 30%" option.
 - Non-recoverable IVA is included in the IRPF expense.
 
+### Expense categories
+
+Every expense belongs to a category, and the category decides how the expense reaches the tax figures: the IRPF rule (in full, home supplies, home rent and IBI, or not deductible), the IVA treatment, an optional annual deduction cap (for example health insurance, 500 € per person) and the expense concept in the AEAT books. The standard categories cover the usual expenses of an autónomo, so most people never change them. Open **Settings → Expense categories** to set a cap, change a rule or add your own category: it gets its own line in the Renta breakdown and is reported in the AEAT books as another deductible expense.
+
 ### AEAT files and validation
 
 The **303** and **130** pages have a card **"AEAT file and validation"**:
