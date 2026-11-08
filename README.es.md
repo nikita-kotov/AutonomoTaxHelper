@@ -43,9 +43,11 @@ El servidor escucha solo en `127.0.0.1` y los datos se quedan en su ordenador. L
 
 ## Instalación e inicio
 
-**Requisitos.** Python 3.12. En Windows, `run.bat` crea el entorno virtual e instala los paquetes en el primer inicio. En macOS y Linux ejecute `pip install -r requirements.txt` y `python app.py`. Firmar declaraciones con certificado (la página Presentación) solo funciona en Windows.
+**Requisitos.** Python 3.12. `run.bat` (Windows) y `run.sh` (macOS, Linux) crean el entorno virtual e instalan los paquetes en el primer inicio. Firmar declaraciones con certificado (la página Presentación) solo funciona en Windows.
 
 Doble clic en `run.bat`: la aplicación arranca en segundo plano con un icono en la bandeja del sistema (sin ventana de consola) y se abre en el navegador en <http://127.0.0.1:5057/>. Doble clic en el icono vuelve a abrir la página; su menú (clic derecho) también abre la carpeta de datos y detiene la aplicación. **Salir** en la barra superior de la página la detiene igualmente. Si ya está en marcha, `run.bat` solo abre la página. Los problemas de arranque se escriben en `app.log` en la carpeta de datos.
+
+En macOS y Linux ejecute `./run.sh` en una terminal (o `sh run.sh`): la aplicación funciona en esa consola, abre la misma dirección en el navegador y se detiene con **Salir** en la página o con Ctrl+C. Probado en Windows.
 
 Primeros pasos en la aplicación: **Ajustes** → NIF/NIE, apellidos y nombre (tal como figuran en el censo de la AEAT), fecha de inicio de la actividad, forma de pago, porcentaje de afectación de la vivienda del modelo 036 → **Operaciones** → primer gasto.
 

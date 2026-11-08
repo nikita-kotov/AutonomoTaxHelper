@@ -1,6 +1,6 @@
 """Autonomo Tax Helper - local web app for a Spanish autonomo.
 
-Run with run.bat (tray icon, no console) or `python app.py` (console; Exit button or Ctrl+C stops it).
+Run with run.bat (Windows: tray icon, no console) or run.sh (macOS, Linux: console; Exit button or Ctrl+C stops it).
 Listens on 127.0.0.1 only.
 The application itself lives in the `taxhelper` package; this file only starts it.
 """
