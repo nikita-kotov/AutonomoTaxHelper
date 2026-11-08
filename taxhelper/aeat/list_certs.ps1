@@ -11,7 +11,6 @@ foreach ($c in Get-ChildItem Cert:\CurrentUser\My) {
     $found += [pscustomobject]@{
         thumbprint = $c.Thumbprint
         subject    = $c.Subject
-        notBefore  = $c.NotBefore.ToString('yyyy-MM-dd')
         notAfter   = $c.NotAfter.ToString('yyyy-MM-dd')
     }
 }

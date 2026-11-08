@@ -121,7 +121,6 @@ CREATE TABLE IF NOT EXISTS filings (
     UNIQUE (year, model, period)
 );
 
--- Auto-created filings the user deleted on purpose; they must not be created again.
 -- Declarations sent to AEAT (the test environment for now) and what AEAT answered.
 CREATE TABLE IF NOT EXISTS submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,6 +144,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     submitted_at TEXT NOT NULL
 );
 
+-- Auto-created filings the user deleted on purpose; they must not be created again.
 CREATE TABLE IF NOT EXISTS filing_skips (
     year INTEGER NOT NULL,
     model TEXT NOT NULL,

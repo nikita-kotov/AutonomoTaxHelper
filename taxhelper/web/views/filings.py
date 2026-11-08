@@ -6,8 +6,9 @@ from datetime import date
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
-from ...i18n import UserError, t
 from ...dates import parse_date
+from ...i18n import UserError, t
+from ...settings import parse_year
 from ..forms import parse_filing
 from ..helpers import safe_next
 from ..infra import svc
@@ -63,10 +64,7 @@ def edit(filing_id):
         document = row["document"]
         if not errors:
             try:
-                uploaded = save_upload(request.files.get("document"))
-                if uploaded:
-                    delete_document(document)
-                    document = uploaded
+                document = save_upload(request.files.get("document")) or document
             except UserError as exc:
                 errors.append(str(exc))
         if errors:
@@ -75,6 +73,8 @@ def edit(filing_id):
             return render_template("filing_form.html", f=dict(row) | request.form.to_dict())
         s.filings.update_details(filing_id, document=document, **result.values)
         s.filings.commit()
+        if document != row["document"]:
+            delete_document(row["document"])  # only after the row no longer points at it
         flash(t("flash.saved"), "ok")
         return redirect(url_for("filings.index"))
     f = dict(row)
@@ -86,11 +86,11 @@ def edit(filing_id):
 def new():
     """A hand-made filing (e.g. 349, 115, 036) with its own due date."""
     try:
-        year = int(request.form.get("fyear", ""))
+        year = parse_year(request.form.get("fyear", ""))
         due = parse_date(request.form.get("due_date", ""))
         model = request.form.get("model", "").strip()[:10]
         period = request.form.get("period", "").strip()[:10] or "ANUAL"
-        if not model or not 2000 <= year <= 2100:
+        if not model or year is None:
             raise ValueError("model/year")
     except ValueError:
         flash(t("err.filing_fields"), "error")
@@ -128,6 +128,6 @@ def delete(filing_id):
     s = svc()
     row = s.filings.get(filing_id)
     if row:
-        delete_document(row["document"])
         s.calendar.delete(row)
+        delete_document(row["document"])
     return redirect(url_for("filings.index"))

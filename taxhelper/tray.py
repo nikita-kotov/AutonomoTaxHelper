@@ -7,6 +7,7 @@ Problems are written to app.log in the data folder, because there is no console 
 from __future__ import annotations
 
 import importlib
+import locale
 import logging
 import logging.handlers
 import os
@@ -33,11 +34,21 @@ def configure_logging() -> None:
     root.addHandler(handler)
     root.setLevel(logging.INFO)
 
+    log_path = db.data_dir() / "app.log"
+
     def hook(kind, value, trace):
         logging.getLogger("taxhelper").error("Uncaught exception", exc_info=(kind, value, trace))
-        alert(f"{TITLE} could not start or has crashed.\n\n{kind.__name__}: {value}\n\n"
-              f"Details: {db.data_dir() / 'app.log'}")
+        alert(crash_message(kind, value, log_path))
     sys.excepthook = hook
+
+
+def crash_message(kind, value, log_path) -> str:
+    """The text of the window shown when the app cannot start, in the user's language."""
+    try:
+        i18n.set_language(_language())
+    except Exception:  # the crash may be a damaged database: then the language of Windows decides
+        i18n.set_language(_system_language())
+    return i18n.t("tray.crashed", error=f"{kind.__name__}: {value}", log=log_path)
 
 
 def alert(message: str) -> None:
@@ -55,14 +66,29 @@ def open_folder(path) -> None:
         subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
 
 
+WINDOWS_LANGUAGES = {0x09: "en", 0x0A: "es", 0x19: "ru"}  # primary language ids of Windows
+
+
+def _system_language() -> str:
+    """The language of the operating system when the app has one for it, else English."""
+    code = ""
+    if sys.platform == "win32":
+        import ctypes
+        code = WINDOWS_LANGUAGES.get(ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF, "")
+    else:
+        code = (locale.getlocale()[0] or "")[:2].lower()
+    return code if code in i18n.available() else i18n.FALLBACK
+
+
 def _language() -> str:
-    """The saved interface language (the tray has no browser request to take a preference from)."""
+    """The saved interface language; without one, the language of the system (the tray has no browser request to
+    take a preference from)."""
     con = db.connect()
     try:
         saved = SettingsRepository(con).load().language
     finally:
         con.close()
-    return saved if saved in i18n.available() else i18n.FALLBACK
+    return saved if saved in i18n.available() else _system_language()
 
 
 def load_pystray():

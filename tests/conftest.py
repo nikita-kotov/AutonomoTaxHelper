@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import pytest
 
+from taxhelper import i18n
 from taxhelper.fx import FxError, Rate
 from taxhelper.web import create_app
 
@@ -31,6 +32,14 @@ def never_touch_real_data(tmp_path, monkeypatch):
     """Every test works in its own empty data folder, so a test that forgets a fixture cannot read or change the
     developer's real database (the default data folder)."""
     monkeypatch.setenv("TAXHELPER_DATA", str(tmp_path / "isolated-data"))
+
+
+@pytest.fixture(autouse=True)
+def english():
+    """Every test starts and ends in English, whatever language an earlier test selected."""
+    i18n.set_language("en")
+    yield
+    i18n.set_language("en")
 
 
 @pytest.fixture()

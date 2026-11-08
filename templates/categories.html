@@ -15,7 +15,7 @@
     <td><input name="annual_cap" form="cf{{ c.id }}" value="{{ '%.2f'|format(c.annual_cap_cents / 100) if c.annual_cap_cents is not none else '' }}" inputmode="decimal" placeholder="—" size="8"></td>
     <td><input name="notes" form="cf{{ c.id }}" value="{{ cat_note(c) }}"></td>
     <td class="num" style="white-space:nowrap"><button class="small" form="cf{{ c.id }}">{{ t('common.save') }}</button>
-      {% if not usage.get(c.id) %}<button class="small danger" form="cf{{ c.id }}" formaction="{{ url_for('categories.delete', category_id=c.id) }}" onclick="return confirm({{ t('cats.confirm_delete')|tojson }})">✕</button>{% endif %}</td>
+      {% if not usage.get(c.id) %}<button class="small danger" form="cf{{ c.id }}" formaction="{{ url_for('categories.delete', category_id=c.id) }}" onclick='return confirm({{ t('cats.confirm_delete')|tojson }})'>✕</button>{% endif %}</td>
   </tr>
   {% endfor %}
 </table></div>

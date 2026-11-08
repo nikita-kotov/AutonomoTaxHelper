@@ -79,6 +79,22 @@ def test_overview_gives_each_quarter_its_own_figures(client):
     assert sum(r.irpf for r in rows) == 57_000  # the quarters add up to the payment on the whole year
 
 
+def test_a_negative_quarter_is_no_payment(client):
+    set_settings(prev_year_net_yield_cents=0)  # casilla 13: 100 EUR off in every quarter, so a quarter without tax is negative
+    income(client, "2026-05-10", "10000")
+    con = db.connect()
+    try:
+        reports = TaxReports(SettingsRepository(con), EntryRepository(con))
+        rows = reports.overview(2026)
+        # the second quarter is already reduced by the negative first one: adding the negative quarter again would count it twice
+        assert [r.irpf for r in rows] == [-10_000, 170_000, -10_000, -10_000]
+        assert sum(r.payable for r in rows) == 170_000
+        assert reports.renta_estimate(2026, {}, 4).advances == 170_000
+        assert reports.renta_estimate(2026, {1: -10_000, 2: 170_000}, 2).advances == 170_000  # filed results behave the same
+    finally:
+        con.close()
+
+
 # ---------------------------------------------------------------- the page
 
 def chart_data(page):
@@ -155,3 +171,9 @@ def test_money_can_be_shown_in_whole_euros():
 def test_a_negative_personal_minimum_is_refused(client):
     client.post("/settings", data=form(renta_personal_minimum_eur="-100"))
     assert load_settings().renta_personal_minimum_cents == 555_000
+
+
+def test_a_negative_cap_for_the_difficult_justification_is_refused_and_named_by_its_label(client):
+    page = text(client.post("/settings", data=form(difficult_cap_eur="-500"), follow_redirects=True))
+    assert "Invalid amount in field Annual cap" in page
+    assert load_settings().difficult_cap_cents == 200_000

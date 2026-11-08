@@ -1,4 +1,5 @@
 """The AEAT books workbook (libros registro): format, line rules, the page and the validation client."""
+
 import io
 import re
 import zipfile
@@ -9,11 +10,11 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from taxhelper import db
-from taxhelper.aeat import client as aeat_client
-from taxhelper.aeat import libros, libros_layout
+from taxhelper.aeat import client as aeat_client, libros, libros_layout
 from taxhelper.aeat.xlsx import Sheet, write_xlsx
 from taxhelper.i18n import UserError
 from tests.support import category_id, set_settings, text
+
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 PROFILE = dict(holder_nif="X1234567L", holder_surname="Garcia Lopez", holder_firstname="Ana", iae_epigraph="2*763",
@@ -192,6 +193,17 @@ def test_income_withholding_appears_once_per_invoice(client):
     assert row[30] == Decimal("15.00") and row[31] == Decimal("150.00")
 
 
+def test_rent_retention_is_written_in_the_expense_book(client):
+    set_settings(**PROFILE)
+    post_entry(client, "expense", date="2026-02-01", counterparty="Landlord SL", vat_id="B12345674", number="R-1",
+               category_id=str(category_id("office_rent")), base="1000.00", vat_rate="21", withholding_rate="19")
+    post_entry(client, "expense", date="2026-02-02", counterparty="Shop", vat_id="A28812618", number="2",
+               category_id=str(category_id("office")), base="50.00", vat_rate="0")
+    rent, other = lines(read_workbook(build().content)["RECIBIDAS_GASTOS"])
+    assert rent[36] == Decimal("19.00") and rent[37] == Decimal("190.00")
+    assert other[36] is None and other[37] is None
+
+
 def test_custom_categories_follow_their_irpf_mode(client):
     set_settings(**PROFILE)
     client.post("/categories", data={"name": "My supply", "irpf_mode": "home_supply", "vat_mode": "none"})
@@ -320,3 +332,66 @@ def test_activity_settings_are_saved_and_validated(client):
     assert (load_settings().activity_code, load_settings().iae_epigraph) == ("A03", "6533")
     client.post("/settings", data={**form, "activity_code": "ZZ"})
     assert load_settings().activity_code == "A05"
+
+
+def custom_category(client, name, irpf, vat):
+    client.post("/categories", data={"name": name, "irpf_mode": irpf, "vat_mode": vat})
+    con = db.connect()
+    try:
+        return con.execute("SELECT id FROM categories WHERE name = ?", (name,)).fetchone()["id"]
+    finally:
+        con.close()
+
+
+def test_expense_above_the_base_is_capped_and_the_total_matches_the_file(client):
+    set_settings(**PROFILE)
+    cid = custom_category(client, "Nonrecoverable", "full", "none")
+    post_entry(client, "expense", date="2026-03-02", counterparty="Supplier SL", vat_id="B67817262", number="N-1",
+               category_id=str(cid), base="100.00", vat_rate="21", vat_amount="21.00")
+    built = build()
+    [row] = lines(read_workbook(built.content)["RECIBIDAS_GASTOS"])
+    assert row[7] == Decimal("100.00")                       # the AEAT never accepts more than the base
+    assert built.expense_deductible_cents == 10_000          # the page total equals what the file carries
+    warning = [str(w) for w in built.warnings if "limited" in str(w)]
+    assert warning and "€21.00" in warning[0]                # and says what has to be added by hand
+
+
+def test_credit_notes_are_rectifying_invoices_with_negative_amounts(client):
+    set_settings(**PROFILE)
+    post_entry(client, "income", date="2026-02-01", counterparty="Spanish SL", vat_id="B12345674", number="A-2",
+               base="-200.00", vat_rate="21", vat_amount="-42.00", withholding_rate="0")
+    post_entry(client, "expense", date="2026-02-02", counterparty="Aigues", vat_id="A66098435", number="W-9",
+               category_id=str(category_id("water")), base="-61.34", vat_rate="10", vat_amount="-3.26")
+    wb = read_workbook(build().content)
+    [income] = lines(wb["EXPEDIDAS_INGRESOS"])
+    assert income[5] == "R1" and income[21] == Decimal("-200.00") and income[23] == Decimal("-42.00")
+    expense = lines(wb["RECIBIDAS_GASTOS"])
+    assert [r[5] for r in expense] == ["R1", "R1"]                                   # both lines of the split credit note
+    assert [r[26] for r in expense] == [Decimal("-32.60"), Decimal("-28.74")]        # split keeps the sign
+    assert all(r[6] == "G15" for r in expense) and sum(r[7] for r in expense) < 0
+
+
+def test_a_long_name_is_reported_once_even_when_the_invoice_has_two_lines(client):
+    set_settings(**PROFILE)
+    post_entry(client, "expense", date="2026-04-23", counterparty="N" * 45, vat_id="A66098435", number="W1",
+               category_id=str(category_id("water")), base="61.34", vat_rate="10", vat_amount="3.26")
+    built = build()
+    assert built.expense_lines == 2 and sum("cut to 40" in str(w) for w in built.warnings) == 1
+
+
+def test_an_unknown_book_column_fails_loudly():
+    with pytest.raises(ValueError):
+        libros._line(libros.INCOME_COLUMNS, nonsense=1)
+
+
+def test_the_download_of_an_incomplete_profile_goes_back_to_the_page(client):
+    r = client.get("/libros/file?year=2026")
+    assert r.status_code == 302 and "/libros" in r.headers["Location"]
+
+
+def test_the_aeat_verdict_needs_a_real_true():
+    assert not aeat_client.parse_libros_response('{"resultado":{"valido":"false"}}').ok
+    assert not aeat_client.parse_libros_response('{"resultado":{"valido":"N"}}').ok
+    assert not aeat_client.parse_libros_response('{"resultado":{"valido":0}}').ok
+    assert aeat_client.parse_libros_response('{"resultado":{"valido":true}}').ok
+    assert aeat_client.parse_libros_response('{"resultado":{"valido":"true"}}').ok

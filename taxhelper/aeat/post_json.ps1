@@ -1,7 +1,7 @@
 # One HTTPS call to AEAT authenticated with a certificate of the Windows store (SChannel).
 # The private key of such a certificate cannot be exported, so Python's ssl module cannot use it;
 # .NET asks Windows to sign the TLS handshake instead (a PIN or smart-card prompt appears when the key needs it).
-# Prints one JSON object: {"status": <http code>, "location": ..., "contentType": ..., "body": <base64 of the raw body>}
+# Prints one JSON object: {"status": <http code>, "location": ..., "body": <base64 of the raw body>}
 # or {"error": <message>}. The request body is read from a file so it never appears on a command line.
 param(
     [Parameter(Mandatory = $true)][string]$Url,
@@ -42,8 +42,7 @@ try {
     ConvertTo-Json -Compress -InputObject @{
         status      = [int]$resp.StatusCode
         location    = [string]$resp.Headers['Location']
-        contentType = [string]$resp.ContentType
-        body        = [Convert]::ToBase64String($memory.ToArray())
+        body        =[Convert]::ToBase64String($memory.ToArray())
     }
     $resp.Close()
 } catch {

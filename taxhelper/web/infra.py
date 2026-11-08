@@ -79,7 +79,6 @@ class Services:
 
 def svc() -> Services:
     """The request's service container (created on first use)."""
-    from flask import current_app
     if "services" not in g:
         g.db = db.connect()
         g.services = Services(g.db, current_app.config["FX_PROVIDER"], current_app.config["AEAT_TRANSPORT"])

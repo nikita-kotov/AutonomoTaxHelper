@@ -1,4 +1,5 @@
 """Locale files, translation lookup and language handling in the app."""
+
 import json
 import re
 import shutil
@@ -10,6 +11,7 @@ import pytest
 
 from taxhelper import db, deadlines, i18n
 from taxhelper.repositories import CategoryRepository
+
 
 ROOT = Path(__file__).resolve().parent.parent
 LOCALE_DIR = ROOT / "locales"
@@ -235,3 +237,7 @@ def test_js_texts_and_previews_are_localised(client):
     r = client.post("/api/preview", json={"kind": "expense", "regime": "domestic", "base": "1000", "vat_rate": "21",
                                           "category_id": 1, "date": "2026-02-01"})
     assert r.get_json()["total"] == "€1,210.00"
+
+
+def test_language_list_is_cached_until_reload():
+    assert i18n.available() is i18n.available()

@@ -1,6 +1,6 @@
 from datetime import date
 
-from taxhelper import deadlines as dl
+from taxhelper import deadlines, deadlines as dl
 
 
 def test_weekend_rolls_to_monday():
@@ -38,3 +38,8 @@ def test_display_status():
     assert s("pending", opens, due, date(2026, 4, 10)) == "due_soon"
     assert s("pending", opens, due, date(2026, 4, 20)) == "due_soon"  # last day still allowed
     assert s("pending", opens, due, date(2026, 4, 21)) == "overdue"
+
+
+def test_period_quarter_helper():
+    f = deadlines.period_quarter
+    assert [f(p) for p in ("1T", "4T", "5T", "0T", "ANUAL", "", None)] == [1, 4, None, None, None, None, None]

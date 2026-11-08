@@ -159,7 +159,7 @@ English, Russian, Spanish. Pick the language in the header or **Settings → Lan
 
 ## Development
 
-Install the packages with `pip install -r requirements.txt` and run the tests with `pytest`; they use their own empty data folder. The application is the `taxhelper` package: `calc.py` holds the tax rules, `aeat/` the AEAT files and submission, `web/` the Flask views and forms; all interface texts are in `locales/`. Bug reports and pull requests are welcome.
+Install the packages with `pip install -r requirements-dev.txt` and run the tests with `pytest`; they use their own empty data folder. The application is the `taxhelper` package: `calc.py` holds the tax rules, `aeat/` the AEAT files and submission, `web/` the Flask views and forms; all interface texts are in `locales/`. Bug reports and pull requests are welcome.
 
 ## Support the author
 

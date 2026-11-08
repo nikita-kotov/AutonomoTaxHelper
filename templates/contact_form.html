@@ -41,7 +41,7 @@
   <button class="primary" type="submit">{{ t('common.save') }}</button>
   <a class="btn" href="{{ url_for('contacts.index', kind=kind) }}">{{ t('common.cancel') }}</a>
   {% if contact_id %}
-  <button class="danger" type="submit" form="del" onclick="return confirm({{ t('contacts.confirm_delete')|tojson }})">{{ t('common.delete') }}</button>
+  <button class="danger" type="submit" form="del" onclick='return confirm({{ t('contacts.confirm_delete')|tojson }})'>{{ t('common.delete') }}</button>
   {% endif %}
 </form>
 {% if contact_id %}<form id="del" method="post" action="{{ url_for('contacts.delete', contact_id=contact_id) }}"></form>{% endif %}

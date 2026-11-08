@@ -5,7 +5,7 @@
 <p class="muted small">{{ t('filings.intro') }}</p>
 
 <form class="card toolbar" method="post" action="{{ url_for('filings.bulk_filed') }}"
-      onsubmit="return confirm({{ t('filings.bulk_confirm')|tojson }})">
+      onsubmit='return confirm({{ t('filings.bulk_confirm')|tojson }})'>
   <label>{{ t('filings.bulk_label') }} <input type="date" min="{{ DATE_MIN }}" max="{{ DATE_MAX }}" name="upto" required></label>
   <button>{{ t('filings.bulk_btn') }}</button>
   <span class="small muted">{{ t('filings.bulk_hint') }}</span>

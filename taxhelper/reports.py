@@ -19,6 +19,11 @@ class QuarterFigures:
     irpf: int  # payment of modelo 130 for the quarter (negative: credited later)
     vat: int  # result of modelo 303 for the quarter (negative: to compensate)
 
+    @property
+    def payable(self) -> int:
+        """What the quarter costs: a negative result is not a payment, the later quarter already deducts it."""
+        return max(self.irpf, 0) + max(self.vat, 0)
+
 
 class TaxReports:
     def __init__(self, settings: SettingsRepository, entries: EntryRepository):
@@ -73,11 +78,12 @@ class TaxReports:
         """The estimated Renta of the year from the figures so far.
 
         `paid_130` holds the result of the quarters already filed (quarter -> cents); the other quarters up to
-        `upto` count with the amount the app calculates for them.
+        `upto` count with the amount the app calculates for them. A negative result is no payment: the later
+        quarters deduct it, so only the positive ones add up.
         """
         settings = self.settings.load()
         annual = self.annual(year)
-        advances = sum(paid_130.get(r.quarter, r.c19) for r in self.irpf_year(year, upto))
+        advances = sum(max(paid_130.get(r.quarter, r.c19), 0) for r in self.irpf_year(year, upto))
         return renta.estimate_renta(
             annual.net_yield_reduced, settings.renta_other_income_cents, settings.renta_personal_minimum_cents,
             annual.withholdings, advances, settings.regional_scale)

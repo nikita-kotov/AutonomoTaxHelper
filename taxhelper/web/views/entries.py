@@ -15,6 +15,7 @@ from ... import calc, fx, i18n
 from ...fx import FxError
 from ...i18n import UserError, t
 from ..forms import parse_entry, parse_percent
+from ..import_csv import csv_safe
 from ..helpers import current_year, quarter_arg
 from ..infra import svc
 from ..uploads import delete_document, save_upload
@@ -85,8 +86,8 @@ def export_csv():
     for x in reversed(ledger_rows(year)):
         r = x["r"]
         foreign = r["orig_amount_cents"] is not None
-        w.writerow([r["date"], r["kind"], r["number"], r["counterparty"], r["country"], r["vat_id"],
-                    r["description"], x["cat"], r["regime"], money(r["base_cents"]), r["vat_rate"],
+        w.writerow([r["date"], r["kind"], csv_safe(r["number"]), csv_safe(r["counterparty"]), r["country"],
+                    csv_safe(r["vat_id"]), csv_safe(r["description"]), csv_safe(x["cat"]), r["regime"], money(r["base_cents"]), r["vat_rate"],
                     money(r["vat_cents"]), money(r["withholding_cents"]), money(x["vat_ded"]), money(x["irpf_ded"]),
                     r["currency"], money(r["orig_amount_cents"]) if foreign else "", r["fx_rate"],
                     r["fx_rate_date"], r["fx_source"]])
@@ -213,8 +214,8 @@ def delete(entry_id):
     row = s.entries.get(entry_id)
     if row is None:
         abort(404)
-    delete_document(row["document"])
     s.entries.delete(entry_id)
+    delete_document(row["document"])  # only after the row no longer points at it
     flash(t("flash.entry_deleted"), "ok")
     return redirect(url_for("entries.index", year=row["date"][:4]))
 
@@ -228,15 +229,16 @@ def preview():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify({"ok": False})
-    # whatever the client sent, work on strings (flags stay booleans)
-    data = {k: v if isinstance(v, bool) else ("" if v is None else str(v)) for k, v in payload.items()}
+    # whatever the client sent, work on strings; the two flags say whether the amounts were typed by hand
+    vat_manual, base_manual = bool(payload.get("vat_manual")), bool(payload.get("base_manual"))
+    data = {k: "" if v is None else str(v) for k, v in payload.items()}
     kind, regime = data.get("kind", "expense"), data.get("regime", "domestic")
     if kind not in ("income", "expense") or regime not in (calc.INCOME_REGIMES if kind == "income" else calc.EXPENSE_REGIMES):
         return jsonify({"ok": False})
     currency = (data.get("currency") or fx.EUR).strip().upper()
 
     base, base_text = None, None
-    if currency != fx.EUR and not data.get("base_manual"):  # derive the euro base from amount and rate
+    if currency != fx.EUR and not base_manual:  # derive the euro base from amount and rate
         try:
             base = fx.convert_to_eur_cents(calc.parse_money(data.get("orig_amount")), fx.parse_rate(data.get("fx_rate")))
             base_text = f"{base / 100:.2f}"
@@ -255,7 +257,7 @@ def preview():
     if regime in calc.RATELESS_REGIMES:
         rate = Decimal(0)
     entered = None
-    if (data.get("vat_amount") or "").strip() and data.get("vat_manual"):
+    if data.get("vat_amount", "").strip() and vat_manual:
         try:
             entered = calc.parse_money(data.get("vat_amount"))
         except ValueError:

@@ -14,7 +14,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Dict, Optional, Tuple
 
-from . import calc, deadlines, renta
+from . import calc, dates, deadlines, renta
 
 PAYMENT_METHODS = ("nrc", "domiciliacion")
 VAT_HOME_MODES = ("share", "share_factor", "none")
@@ -59,7 +59,7 @@ class Settings:
     # IRPF details
     difficult_enabled: bool = True
     difficult_pct: Decimal = Decimal("0.05")  # a fraction
-    difficult_cap_cents: int = 200_000
+    difficult_cap_cents: int = calc.DIFFICULT_CAP_CENTS
     prev_year_net_yield_cents: Optional[int] = None
     start_reduction: bool = False  # 20 % reduction for starting an activity, Renta only
     start_reduction_year: int = 0  # first year with a positive net yield; 0 = the year of the activity start
@@ -148,9 +148,9 @@ def _money(text: str) -> Optional[int]:
 
 
 def parse_year(text: str) -> Optional[int]:
-    """A four-digit year 2000..2100, or None when the text is anything else."""
+    """A four-digit year inside the supported range (see `dates`), or None when the text is anything else."""
     text = text.strip()
-    return int(text) if re.fullmatch(r"20\d\d|2100", text) else None
+    return int(text) if re.fullmatch(r"\d{4}", text) and dates.MIN_YEAR <= int(text) <= dates.MAX_YEAR else None
 
 
 def _money_or(text: str, default: int) -> int:

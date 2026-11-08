@@ -2,16 +2,23 @@
 
 Positions are 1-based, as in DR130e15v12.xls and DR303e26v101.xlsx.
 """
+
 import base64
+import http.client
 import json
+import urllib.request
 from datetime import date
 from decimal import Decimal
 
 import pytest
 
 from taxhelper import calc
-from taxhelper.aeat import client, fixed, model130, model303
-from taxhelper.aeat.fixed import Taxpayer
+from taxhelper.aeat import client, client as aeat_client, fixed, model130, model303
+from taxhelper.aeat.fixed import Taxpayer, signed
+from taxhelper.calc import TaxSettings
+from taxhelper.i18n import UserError
+from tests.support import entry
+
 
 TP = Taxpayer(nif="12345678Z", surname="García Ñúñez", first_name="José Ángel")
 
@@ -152,7 +159,7 @@ def test_303_page3_result_and_compensation():
     assert q1.c71 == -21_000
     p3 = model303.page3(q2)
     assert len(p3) == 1017 and field(p3, 1, 11) == "<T30303000>"
-    assert field(p3, 12, 17) == fixed.num(300_000)           # [59] EU services (see README: VERIFY)
+    assert field(p3, 12, 17) == fixed.num(300_000)           # [59] EU services
     assert field(p3, 46, 17) == fixed.num(400_000)           # [120] non-EU
     assert field(p3, 199, 17) == fixed.num(42_000)           # [64]
     assert field(p3, 216, 5) == "10000"                      # [65] 100,00 %
@@ -209,3 +216,49 @@ def test_parse_errors_and_garbage():
 def test_validate_reports_network_failure():
     r = client.validate("130", 2026, "1T", "x", url="http://127.0.0.1:9/none", timeout=2)
     assert not r.ok and r.errors
+
+
+def test_credit_notes_go_to_the_signed_modification_boxes():
+    es = [entry("income", 100_000, 21_000), entry("income", -20_000, -4_200),
+          entry("expense", 50_000, 10_500), entry("expense", -10_000, -2_100)]
+    r = calc.build_303(es, TaxSettings(), 2026, 1)
+    assert r.by_rate[21] == [100_000, 21_000]
+    assert (r.c14, r.c15) == (-20_000, -4_200) and (r.c40, r.c41) == (-10_000, -2_100)
+    assert (r.c28, r.c29) == (50_000, 10_500)
+    assert r.c27 == 21_000 - 4_200 and r.c45 == 10_500 - 2_100 and r.c46 == 16_800 - 8_400
+    page = model303.page1(r, TP, "I")
+    assert page[432:449] == signed(-20_000) and page[449:466] == signed(-4_200)    # [14][15] at 433/450
+    assert page[916:933] == signed(-10_000) and page[933:950] == signed(-2_100)    # [40][41] at 917/934
+    assert page[695:712] == signed(r.c27) and page[1001:1018] == signed(r.c45)
+
+
+def test_unsignable_negative_amount_gives_a_user_message_not_a_crash():
+    es = [entry("income", -5_000, 0, 0)]
+    rep = calc.build_130_year(es, TaxSettings(), 2026, 1)[0]
+    with pytest.raises(UserError) as exc:
+        model130.build(rep, TP)
+    assert exc.value.msg.key == "err.aeat_negative"
+    rev = calc.build_303([entry("expense", -2_000, -420, regime="non_eu_reverse")], TaxSettings(), 2026, 1)
+    with pytest.raises(UserError):
+        model303.build(rev, TP)
+
+
+def test_reply_without_errors_and_without_pdf_is_a_failure_with_a_reason():
+    r = aeat_client.parse_response('{"respuesta": {"avisos": ["31190 - aviso"]}}')
+    assert not r.ok and r.pdf is None and len(r.errors) == 1 and r.warnings == ["31190 - aviso"]
+
+
+def test_connection_errors_of_http_client_become_failed_results(monkeypatch):
+    def boom(*_a, **_k):
+        raise http.client.RemoteDisconnected("closed without a reply")
+
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
+    r = aeat_client.validate("130", 2026, "1T", "x")
+    assert not r.ok and "closed without a reply" in r.errors[0]
+
+
+def test_shared_header_and_footer_for_both_models():
+    from taxhelper.aeat import fixed
+    h = fixed.file_header("130", 2026, "1T", "12345678Z", "")
+    assert len(h) == 328 and h.startswith("<T13002026" + "1T0000><AUX>") and h[100:109] == "12345678Z"
+    assert fixed.file_footer("303", 2026, "4T") == "</T303020264T0000>"

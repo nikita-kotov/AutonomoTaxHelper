@@ -20,7 +20,7 @@
   <label>{{ t('form.notes') }} <textarea name="notes" rows="3">{{ f.notes }}</textarea></label>
   <button class="primary">{{ t('common.save') }}</button>
   <a class="btn" href="{{ url_for('filings.index') }}">{{ t('common.back') }}</a>
-  <button class="danger" type="submit" form="del" onclick="return confirm({{ t('filing.confirm_delete')|tojson }})">{{ t('common.delete') }}</button>
+  <button class="danger" type="submit" form="del" onclick='return confirm({{ t('filing.confirm_delete')|tojson }})'>{{ t('common.delete') }}</button>
 </form>
 <form id="del" method="post" action="{{ url_for('filings.delete', filing_id=f.id) }}"></form>
 {% endblock %}

@@ -30,7 +30,8 @@ def create_app(fx_provider: Optional[RateProvider] = None, aeat_transport: Optio
     """Build the app. The data folder comes from TAXHELPER_DATA (see taxhelper.db).
 
     `fx_provider` supplies exchange rates for foreign-currency invoices (default: ECB reference
-    rates via Frankfurter); tests pass a fake one.
+    rates via Frankfurter) and `aeat_transport` makes the certificate-authenticated calls to the AEAT
+    (default: the Windows certificate store); tests pass fakes.
     """
     app = Flask(__name__, template_folder=str(ROOT / "templates"), static_folder=str(ROOT / "static"))
     app.secret_key = _secret_key()  # signs the flash-message cookie

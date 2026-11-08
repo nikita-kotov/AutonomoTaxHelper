@@ -4,8 +4,6 @@ and returns plain data so it can be unit-tested.
 
 All money is integer cents. Rates are percentages (21 means 21%).
 Rounding is half-up to the cent, applied per entry.
-
-Rules marked VERIFY depend on interpretation (DGT criteria) or change by year.
 """
 from __future__ import annotations
 
@@ -28,6 +26,8 @@ IRPF_MODES = ("full", "home_supply", "home_property", "none")
 VAT_MODES = ("full", "home_supply", "home_property", "none")
 IRPF_METHODS = ("simplificada", "normal")
 HOME_RULES = ("share", "share_factor")  # IRPF rule for home costs: affected %, or affected % x 30 %
+
+DIFFICULT_CAP_CENTS = 200_000  # gastos de dificil justificacion: the yearly cap, 2 000 EUR
 
 REVERSE_REGIMES = ("eu_reverse", "non_eu_reverse")
 RATELESS_REGIMES = ("exempt", "eu_b2b", "non_eu", "no_vat")  # no IVA rate applies: the rate is forced to 0
@@ -130,7 +130,7 @@ class TaxSettings:
     vat_home_mode: str = "share"
     difficult_enabled: bool = True  # apply gastos de dificil justificacion (only in simplificada)
     difficult_pct: Decimal = Decimal("0.05")
-    difficult_cap_cents: int = 200_000
+    difficult_cap_cents: int = DIFFICULT_CAP_CENTS
     prev_year_net_yield_cents: Optional[int] = None  # for 130 casilla 13
     irpf_rate: Decimal = Decimal("0.20")  # 130 rate (20% general, 8% Ceuta/Melilla)
     irpf_method: str = "simplificada"  # 'simplificada' | 'normal' (estimacion directa)
@@ -417,7 +417,6 @@ class Irpf130:
     c16: int = 0
     c17: int = 0
     c19: int = 0
-    pool_out: int = 0  # negative results still to deduct in later quarters
     warnings: List[Msg] = field(default_factory=list)
 
 
@@ -426,7 +425,7 @@ def build_130_year(entries: List[Entry], s: TaxSettings, year: int, upto: int = 
     out: List[Irpf130] = []
     prev_c07_pos_sum = 0
     prev_c16_sum = 0
-    pool = 0
+    pool = 0  # negative results still to deduct in later quarters
     for q in range(1, upto + 1):
         end = quarter_end(year, q)
         ytd = [e for e in entries if e.date.year == year and e.date <= end]
@@ -449,7 +448,6 @@ def build_130_year(entries: List[Entry], s: TaxSettings, year: int, upto: int = 
         r.c17 = r.c14 - r.c15 - r.c16
         r.c19 = r.c17
         pool = pool - r.c15 + (-r.c19 if r.c19 < 0 else 0)
-        r.pool_out = pool
         prev_c07_pos_sum += max(r.c07, 0)
         prev_c16_sum += r.c16
         out.append(r)

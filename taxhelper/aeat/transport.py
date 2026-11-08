@@ -32,7 +32,6 @@ class Certificate:
     """A client certificate found in the Windows store, with the holder read from its subject."""
     thumbprint: str
     subject: str
-    not_before: str
     not_after: str
     nif: str = ""
     name: str = ""
@@ -46,7 +45,6 @@ class TransportResponse:
     status: int
     body: bytes
     location: str = ""
-    content_type: str = ""
 
     @property
     def text(self) -> str:
@@ -97,7 +95,7 @@ def parse_subject(subject: str) -> Tuple[str, str]:
 def certificate_from(row: dict) -> Certificate:
     nif, name = parse_subject(row.get("subject", ""))
     return Certificate(thumbprint=str(row.get("thumbprint", "")).upper(), subject=row.get("subject", ""),
-                       not_before=row.get("notBefore", ""), not_after=row.get("notAfter", ""), nif=nif, name=name)
+                       not_after=row.get("notAfter", ""), nif=nif, name=name)
 
 
 class WindowsStoreTransport:
@@ -142,8 +140,7 @@ class WindowsStoreTransport:
             body = base64.b64decode(data.get("body", ""))
         except ValueError as exc:
             raise TransportError("submit.err_transport", detail="unreadable response") from exc
-        return TransportResponse(status=int(data.get("status", 0)), body=body, location=data.get("location") or "",
-                                 content_type=data.get("contentType") or "")
+        return TransportResponse(status=int(data.get("status", 0)), body=body, location=data.get("location") or "")
 
     def post_json(self, url: str, payload: dict, thumbprint: str, timeout: int = 90) -> TransportResponse:
         handle, path = tempfile.mkstemp(suffix=".json", prefix="taxhelper-")

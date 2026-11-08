@@ -29,8 +29,9 @@ def index():
         "dashboard.html",
         vat=s.reports.vat_year(year, quarter)[-1], irpf=s.reports.irpf_year(year, quarter)[-1],
         annual=annual, q=quarter, overview=overview, chart=_chart(overview, settings.vat_registered),
-        taxes_total=sum(r.irpf + r.vat for r in overview),
-        renta=s.reports.renta_estimate(year, s.filings.filed_results(year, "130"), quarter), default_scale=not settings.regional_scale,
+        taxes_total=sum(r.payable for r in overview),
+        renta=s.reports.renta_estimate(year, s.filings.filed_results(year, "130"), quarter),
+        default_scale=not settings.regional_scale,
         overdue=[f for f in open_filings if f["display"] == "overdue"],
         upcoming=[f for f in open_filings if f["display"] != "overdue"][:6],
         notes=_notes(settings, entries), entries_count=len(entries), vat_registered=settings.vat_registered)

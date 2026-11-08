@@ -235,6 +235,12 @@ def _probe_writable(folder: str) -> Optional[str]:
     return None
 
 
+def _choice(form, name: str, allowed, default: str) -> str:
+    """The posted value when it is one of `allowed`, otherwise the default."""
+    value = form.get(name)
+    return value if value in allowed else default
+
+
 def _parse_percents(form, errors: List[str]) -> Dict[str, Decimal]:
     """The percentage fields of the settings page by field name; a bad one adds an error and is left out."""
     percents: Dict[str, Decimal] = {}
@@ -247,18 +253,25 @@ def _parse_percents(form, errors: List[str]) -> Dict[str, Decimal]:
     return percents
 
 
+# amount field of the settings page -> its label; the cap and the personal minimum cannot be negative
+AMOUNT_FIELDS = {"difficult_cap_eur": "settings.difficult_cap", "prev_year_net_yield_eur": "settings.prev_yield",
+                 "vat_carry_in": "settings.vat_carry", "renta_personal_minimum_eur": "settings.renta_minimum",
+                 "renta_other_income_eur": "settings.renta_other"}
+NOT_NEGATIVE_FIELDS = ("difficult_cap_eur", "renta_personal_minimum_eur")
+
+
 def _parse_amount_settings(form, errors: List[str]) -> Dict[str, Optional[int]]:
     """The optional amounts of the settings page in cents (None = left empty); a bad one adds an error."""
     money: Dict[str, Optional[int]] = {}
-    for name in ("difficult_cap_eur", "prev_year_net_yield_eur", "vat_carry_in", "renta_personal_minimum_eur",
-                 "renta_other_income_eur"):
+    for name, label in AMOUNT_FIELDS.items():
         text = form.get(name, "").strip()
         try:
             money[name] = calc.parse_money(text) if text else None
         except ValueError:
-            errors.append(t("err.amount_field", field=name))
-    if (money.get("renta_personal_minimum_eur") or 0) < 0:
-        errors.append(t("err.amount_field", field="renta_personal_minimum_eur"))
+            errors.append(t("err.amount_field", field=t(label)))
+            continue
+        if name in NOT_NEGATIVE_FIELDS and (money[name] or 0) < 0:
+            errors.append(t("err.amount_field", field=t(label)))
     return money
 
 
@@ -268,7 +281,7 @@ def _parse_taxpayer(form, errors: List[str]):
     if nif and len(nif) != 9:
         errors.append(t("err.nif_len9"))
     iban = form.get("holder_iban", "").replace(" ", "").upper()
-    payment = form.get("payment_method") if form.get("payment_method") in PAYMENT_METHODS else "nrc"
+    payment = _choice(form, "payment_method", PAYMENT_METHODS, "nrc")
     if payment == "domiciliacion" and not iban:
         errors.append(t("err.iban_domic"))
     elif iban and not is_valid_iban(iban):
@@ -345,18 +358,18 @@ def parse_settings(form, current: Settings) -> SettingsFormResult:
         vat_registered=bool(form.get("vat_registered")),
         tracked_models=tuple(m for m in form.getlist("tracked_models") if m in deadlines.KNOWN_MODELS),
         extra_holidays=holidays, activity_start=activity_start,
-        activity_code=form.get("activity_code") if form.get("activity_code") in ACTIVITY_CODES else "A05",
+        activity_code=_choice(form, "activity_code", ACTIVITY_CODES, "A05"),
         iae_epigraph=form.get("iae_epigraph", "").strip()[:5],
         default_vat_rate=percents["default_vat_rate"], default_withholding_rate=percents["default_withholding_rate"],
-        fx_mode=form.get("fx_mode") if form.get("fx_mode") in FX_MODES else "auto",
+        fx_mode=_choice(form, "fx_mode", FX_MODES, "auto"),
         home_total_m2=home_total, home_affected_pct=percents["home_affected_pct"],
         supplies_factor=percents["supplies_factor_pct"] / 100,
-        supplies_rule=form.get("supplies_rule") if form.get("supplies_rule") in calc.HOME_RULES else "share_factor",
-        property_rule=form.get("property_rule") if form.get("property_rule") in calc.HOME_RULES else "share",
-        vat_home_mode=form.get("vat_home_mode") if form.get("vat_home_mode") in VAT_HOME_MODES else "share",
-        vat_negative_4t=form.get("vat_negative_4t") if form.get("vat_negative_4t") in VAT_NEGATIVE_MODES else "compensate",
+        supplies_rule=_choice(form, "supplies_rule", calc.HOME_RULES, "share_factor"),
+        property_rule=_choice(form, "property_rule", calc.HOME_RULES, "share"),
+        vat_home_mode=_choice(form, "vat_home_mode", VAT_HOME_MODES, "share"),
+        vat_negative_4t=_choice(form, "vat_negative_4t", VAT_NEGATIVE_MODES, "compensate"),
         difficult_enabled=bool(form.get("difficult_enabled")), difficult_pct=percents["difficult_pct_pct"] / 100,
-        difficult_cap_cents=cap if cap is not None else 200_000,
+        difficult_cap_cents=cap if cap is not None else calc.DIFFICULT_CAP_CENTS,
         prev_year_net_yield_cents=money["prev_year_net_yield_eur"],
         start_reduction=bool(form.get("start_reduction")), start_reduction_year=reduction_year or 0,
         renta_personal_minimum_cents=(money["renta_personal_minimum_eur"] if money["renta_personal_minimum_eur"] is not None

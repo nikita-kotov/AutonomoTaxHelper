@@ -39,7 +39,7 @@
       class="{{ 'active' if code == lang }}" {{ 'aria-current=true' if code == lang }}>{{ code|upper }}</button>{% endfor %}
   </form>
   {% if CAN_QUIT %}<form class="yearpick" method="post" action="{{ url_for('system.quit_app') }}"
-    onsubmit="return confirm('{{ t('quit.confirm')|e }}')"><button>{{ t('quit.btn') }}</button></form>{% endif %}
+    onsubmit='return confirm({{ t('quit.confirm')|tojson }})'><button>{{ t('quit.btn') }}</button></form>{% endif %}
 </header>
 <main>
   {% with msgs = get_flashed_messages(with_categories=true) %}

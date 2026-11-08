@@ -1,8 +1,9 @@
 """Data access: one repository per aggregate. All SQL for entries, categories, filings,
 AEAT checks and cached exchange rates lives here; views and services never write SQL.
 
-Repositories use the connection they are given and do not commit unless a method says so
-(`commit=False` batches several calls into one transaction).
+Repositories use the connection they are given. Writes of the category, contact, entry, submission, check and
+rate-cache repositories commit by themselves (`ContactRepository.remember(commit=False)` batches several calls);
+the filing repository leaves the commit to `FilingRepository.commit`, so one use-case is one transaction.
 """
 from __future__ import annotations
 
@@ -91,10 +92,6 @@ class ContactRepository:
 
     def get(self, contact_id: int) -> Optional[sqlite3.Row]:
         return self.con.execute("SELECT * FROM contacts WHERE id = ?", (contact_id,)).fetchone()
-
-    def find(self, kind: str, name: str) -> Optional[sqlite3.Row]:
-        """The contact of that kind with that name (case-insensitive), if any."""
-        return self.con.execute("SELECT * FROM contacts WHERE kind = ? AND name = ?", (kind, name.strip())).fetchone()
 
     def usage(self) -> Dict[int, int]:
         """{contact id: number of entries that carry its name}."""
@@ -190,6 +187,10 @@ class EntryRepository:
 
     def __init__(self, con: sqlite3.Connection):
         self.con = con
+        # A page builds several reports from the same year: the rows are read once and read again only after the
+        # connection changed some data (its total_changes moves with every insert, update and delete).
+        self._rows: Dict[int, tuple] = {}
+        self._entries: Dict[int, tuple] = {}
 
     @staticmethod
     def to_entry(r: sqlite3.Row) -> calc.Entry:
@@ -206,11 +207,21 @@ class EntryRepository:
 
     def year_rows(self, year: int) -> List[sqlite3.Row]:
         """Joined rows of a calendar year, oldest first."""
-        return self.con.execute(self._SELECT + " WHERE e.date >= ? AND e.date <= ? ORDER BY e.date, e.id",
-                                (f"{year}-01-01", f"{year}-12-31")).fetchall()
+        changes = self.con.total_changes
+        cached = self._rows.get(year)
+        if cached is None or cached[0] != changes:
+            rows = self.con.execute(self._SELECT + " WHERE e.date >= ? AND e.date <= ? ORDER BY e.date, e.id",
+                                    (f"{year}-01-01", f"{year}-12-31")).fetchall()
+            cached = self._rows[year] = (changes, rows)
+        return list(cached[1])
 
     def year_entries(self, year: int) -> List[calc.Entry]:
-        return [self.to_entry(r) for r in self.year_rows(year)]
+        """The calculation entries of a calendar year, oldest first (category names in the current language)."""
+        stamp = (self.con.total_changes, i18n.current_language())
+        cached = self._entries.get(year)
+        if cached is None or cached[0] != stamp:
+            cached = self._entries[year] = (stamp, [self.to_entry(r) for r in self.year_rows(year)])
+        return list(cached[1])
 
     def get(self, entry_id: int) -> Optional[sqlite3.Row]:
         return self.con.execute("SELECT * FROM entries WHERE id = ?", (entry_id,)).fetchone()

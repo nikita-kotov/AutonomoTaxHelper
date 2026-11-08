@@ -75,49 +75,38 @@ class SubmissionResult:
     pdf_url: str = ""
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    raw: str = ""
 
     @property
     def accepted(self) -> bool:
         return self.status == "accepted"
 
 
-def _normalised(d: dict) -> dict:
-    """Keys without stray spaces and in lower case: the published example has a key with a trailing space."""
-    return {str(k).strip().lower(): v for k, v in d.items()}
-
-
-def _strings(value) -> List[str]:
-    return [v if isinstance(v, str) else json.dumps(v, ensure_ascii=False) for v in value] if isinstance(value, list) else []
-
-
 def parse_response(response: TransportResponse) -> SubmissionResult:
     """Interpret AEAT's answer: accepted (secure verification code), rejected (list of errors) or unusable."""
-    raw = response.text[:2000]
     if 300 <= response.status < 400:  # no certificate (or one AEAT does not accept) sends the browser to an error page
-        return SubmissionResult("error", errors=[str(Msg("submit.err_redirect", location=response.location))], raw=raw)
+        return SubmissionResult("error", errors=[str(Msg("submit.err_redirect", location=response.location))])
     try:
         data = json.loads(response.text)
     except ValueError:
-        return SubmissionResult("error", errors=[str(Msg("submit.err_not_json", status=response.status))], raw=raw)
-    body = _normalised(data).get("respuesta") if isinstance(data, dict) else None
+        return SubmissionResult("error", errors=[str(Msg("submit.err_not_json", status=response.status))])
+    body = client.lower_keys(data).get("respuesta") if isinstance(data, dict) else None
     if not isinstance(body, dict):
-        return SubmissionResult("error", errors=[str(Msg("aeat.err_unexpected"))], raw=raw)
-    body = _normalised(body)
+        return SubmissionResult("error", errors=[str(Msg("aeat.err_unexpected"))])
+    body = client.lower_keys(body)
     accepted = body.get("correcta")
     if isinstance(accepted, dict):
-        fields = _normalised(accepted)
+        fields = client.lower_keys(accepted)
         csv = str(fields.get("codigoseguroverificacion") or "").strip()
         if csv:
             return SubmissionResult(
                 "accepted", csv=csv, fecha=str(fields.get("fecha") or ""), hora=str(fields.get("hora") or ""),
                 expediente=str(fields.get("expediente") or ""), justificante=str(fields.get("justificante") or ""),
                 pdf_url=str(fields.get("urlpdf") or ""),
-                warnings=_strings(fields.get("avisos")) + _strings(fields.get("advertencias")), raw=raw)
-    errors = _strings(body.get("errores"))
+                warnings=client.texts(fields.get("avisos")) + client.texts(fields.get("advertencias")))
+    errors = client.texts(body.get("errores"))
     if errors:
-        return SubmissionResult("rejected", errors=errors, raw=raw)
-    return SubmissionResult("error", errors=[str(Msg("aeat.err_unexpected"))], raw=raw)
+        return SubmissionResult("rejected", errors=errors)
+    return SubmissionResult("error", errors=[str(Msg("aeat.err_unexpected"))])
 
 
 # ----------------------------------------------------------------- gates before sending

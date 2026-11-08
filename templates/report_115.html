@@ -29,7 +29,7 @@
 
 <h2>{{ year }}</h2>
 <div class="tablewrap"><table>
-  <tr><th>{{ t('r115.col_quarter') }}</th><th class="num">{{ t('r115.col_payees') }}</th><th class="num">{{ t('r115.col_base') }}</th>
+  <tr><th>{{ t('common.quarter') }}</th><th class="num">{{ t('r115.col_payees') }}</th><th class="num">{{ t('r115.col_base') }}</th>
     <th class="num">{{ t('r115.col_withheld') }}</th><th class="num">{{ t('r115.col_result') }}</th></tr>
   {% for r in quarters %}
   <tr><td><a href="{{ url_for('reports.rent115', year=year, q=r.quarter) }}">{{ r.quarter }}T</a></td><td class="num">{{ r.payees }}</td>

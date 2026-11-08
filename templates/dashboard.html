@@ -34,7 +34,7 @@
   <script src="{{ url_for('static', filename='overview.js') }}"></script>
   <details style="margin-top:.6rem"><summary>{{ t('dash.table_view') }}</summary>
     <div class="tablewrap"><table>
-      <tr><th>{{ t('r115.col_quarter') }}</th>{% for sr in chart.series %}<th class="num">{{ sr.label }}</th>{% endfor %}</tr>
+      <tr><th>{{ t('common.quarter') }}</th>{% for sr in chart.series %}<th class="num">{{ sr.label }}</th>{% endfor %}</tr>
       {% for q in chart.quarters %}<tr><td>{{ q.label }}</td>{% for sr in chart.series %}<td class="num">{{ q.cells[sr.key].text }}</td>{% endfor %}</tr>{% endfor %}
     </table></div>
   </details>

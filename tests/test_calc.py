@@ -1,11 +1,14 @@
 """Unit tests for the pure tax calculations. Expected numbers are worked out by hand."""
+
 from datetime import date
 from decimal import Decimal
 
 import pytest
 
-from taxhelper import calc
+from taxhelper import calc, i18n
 from taxhelper.calc import Entry, TaxSettings
+from tests.support import entry
+
 
 HOME = TaxSettings(home_affected_pct=Decimal(20))  # 20% share
 
@@ -205,7 +208,7 @@ def test_130_withholdings_exceeding_tax_give_zero_and_are_not_double_counted():
     ]
     q1, q2 = calc.build_130_year(entries, TaxSettings(), 2026, 2)
     # Q1: c02=5.000 (5%), c03=95.000, c04=19.000, c06=30.000 -> c07=-11.000, but c12 floors at 0
-    assert q1.c07 == -11_000 and q1.c12 == 0 and q1.c19 == 0 and q1.pool_out == 0
+    assert q1.c07 == -11_000 and q1.c12 == 0 and q1.c19 == 0
     # Q2 is cumulative, so the surplus withholding is already absorbed through c06:
     # c01=200.000, c02=10.000, c03=190.000, c04=38.000, c05=0 (negative c07 not counted), c06=30.000
     assert q2.c05 == 0 and q2.c07 == 8_000 and q2.c19 == 8_000
@@ -219,10 +222,10 @@ def test_130_negative_after_minoracion_is_carried_via_casilla_15():
     ]
     q1, q2 = calc.build_130_year(entries, s, 2026, 2)
     # Q1: c12=0, c13=10.000 -> c14=-10.000 = c19, carried
-    assert q1.c13 == 10_000 and q1.c14 == -10_000 and q1.c19 == -10_000 and q1.pool_out == 10_000
+    assert q1.c13 == 10_000 and q1.c14 == -10_000 and q1.c19 == -10_000
     # Q2: YTD income 1.100.000, c02=55.000, c03=1.045.000, c04=209.000, c06=30.000 -> c07=179.000
     assert q2.c07 == 179_000 and q2.c14 == 169_000
-    assert q2.c15 == 10_000 and q2.c17 == 159_000 and q2.c19 == 159_000 and q2.pool_out == 0
+    assert q2.c15 == 10_000 and q2.c17 == 159_000 and q2.c19 == 159_000
 
 
 def test_130_loss_gives_zero_payment():
@@ -259,3 +262,55 @@ def test_annual_summary():
     assert a.difficult == 42_500  # 5% of 850.000
     assert a.net_yield == 807_500
     assert a.withholdings == 150_000
+
+
+@pytest.mark.parametrize("rate", ["10.5", "4.9", "5", "7.5", "21.5"])
+def test_non_whole_rates_are_not_forced_into_a_standard_box(rate):
+    r = calc.build_303([entry("income", 10_000, 1_050, rate)], TaxSettings(), 2026, 1)
+    assert all(v == [0, 0] for v in r.by_rate.values()) and r.c27 == 0
+    assert [w.key for w in r.warnings] == ["warn.vat_rate_unsupported"]
+
+
+@pytest.mark.parametrize("rate,box", [("21", 21), ("21.00", 21), ("10", 10), ("4.0", 4)])
+def test_whole_rates_still_land_in_their_box(rate, box):
+    r = calc.build_303([entry("income", 10_000, 1_000, rate)], TaxSettings(), 2026, 1)
+    assert r.by_rate[box] == [10_000, 1_000] and not r.warnings
+
+
+def test_credit_note_with_partial_home_deduction_is_proportional():
+    s = TaxSettings(home_affected_pct=Decimal(20))
+    e = Entry(kind="expense", date=date(2026, 2, 1), regime="domestic", base_cents=-10_000, vat_cents=-2_100,
+              vat_rate=Decimal(21), vat_mode="home_supply", category="x")
+    r = calc.build_303([e], s, 2026, 1)
+    assert r.c41 == -420 and r.c40 == -2_000
+
+
+def test_non_finite_amounts_are_rejected():
+    for bad in ("NaN", "Infinity", "-Infinity"):
+        with pytest.raises(ValueError):
+            calc.parse_money(bad)
+
+
+@pytest.mark.parametrize("language,typed,cents", [
+    ("es", "1.500", 150_000), ("es", "1,500", 150), ("es", "12.345", 1_234_500), ("es", "1.234.567", 123_456_700),
+    ("es", "0,500", 50), ("es", ",5", 50), ("es", "1,5", 150), ("es", "1.234,50", 123_450),
+    ("en", "1,500", 150_000), ("en", "1.500", 150), ("en", "1,234,567", 123_456_700), ("en", "0.500", 50),
+    ("en", "1234.567", 123_457), ("en", "1.5", 150), ("en", ".5", 50), ("en", "-1,234.50", -123_450),
+    ("ru", "1.500", 150_000), ("ru", "1,5", 150), ("ru", "1 234,56", 123_456), ("ru", "1 234,56", 123_456),
+    ("ru", "20 €", 2_000), ("ru", "+7", 700)])
+def test_a_lone_separator_follows_the_users_language(language, typed, cents):
+    i18n.set_language(language)
+    assert calc.parse_money(typed) == cents
+
+
+def test_an_explicit_decimal_separator_overrides_the_language():
+    i18n.set_language("es")
+    assert calc.parse_money("1.500", decimal_separator=".") == 150
+    assert calc.parse_money("1,500", decimal_separator=",") == 150
+
+
+@pytest.mark.parametrize("bad", ["1.2.3", "12.34.567", "1,23,456", "1..5", "1.5.", "1,5,", "1.234.56", "abc", "1e5",
+                                 "--5", "+-5", "", " ", "€", "NaN", "Infinity", "1 2 a"])
+def test_malformed_amounts_are_rejected(bad):
+    with pytest.raises(ValueError):
+        calc.parse_money(bad)

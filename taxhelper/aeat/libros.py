@@ -230,8 +230,9 @@ def _expense_lines(row, irpf_cents: int, vat_deductible_cents: int, reception: i
     expense_parts = _allocate(irpf_cents, [b for b, _, _ in lines]) if concept else [0] * len(lines)
     vat_parts = _allocate(vat_deductible_cents, [b for b, _, _ in lines])
     name = _clip(row["counterparty"], _NAME_LIMIT, label, "name", warnings) or None
+    withholding = row["withholding_cents"] > 0  # IRPF retained from the payee (rent, modelo 115): written once per invoice
     out = []
-    for (base, line_rate, line_vat), expense, deductible_vat in zip(lines, expense_parts, vat_parts):
+    for position, ((base, line_rate, line_vat), expense, deductible_vat) in enumerate(zip(lines, expense_parts, vat_parts)):
         values = dict(
             year=on.year, period=_quarter_label(on), act_code=act_code, act_type=act_type or None, iae=iae or None,
             tipo_factura=tipo_factura, concepto=concept or None, gasto=_eur(expense) if concept else None,
@@ -244,6 +245,9 @@ def _expense_lines(row, irpf_cents: int, vat_deductible_cents: int, reception: i
         if has_vat:
             values.update(tipo_iva=line_rate.quantize(Decimal("0.01")), cuota=_eur(line_vat),
                           cuota_deducible=_eur(deductible_vat))
+        if withholding and position == 0:
+            values.update(ret_tipo=Decimal(row["withholding_rate"] or "0").quantize(Decimal("0.01")),
+                          ret_importe=_eur(row["withholding_cents"]))
         out.append(_line(EXPENSE_COLUMNS, **values))
     return out, sum(expense_parts)
 

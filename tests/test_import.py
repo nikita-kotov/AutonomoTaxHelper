@@ -1,9 +1,11 @@
 """CSV import: parsing, preview, duplicate detection and the confirmed write."""
+
 import io
 from decimal import Decimal
 
 from taxhelper import db
 from tests.support import set_settings, text
+
 
 HEADER = "date;kind;number;counterparty;country;vat_id;description;category;regime;currency;orig_amount;base;vat_rate;vat_amount\n"
 GOOD = HEADER + (
@@ -146,3 +148,39 @@ def test_the_import_page_is_linked_and_renders_in_every_language(client):
 def test_oversized_files_are_refused(client):
     big = HEADER + ("2026-01-01;expense;1;X;ES;;x;software;domestic;EUR;;1.00;21;\n" * 2001)
     assert "too large" in text(preview(client, big))
+
+
+def test_a_date_with_a_two_digit_year_is_not_guessed_by_the_import(client):
+    csv_text = "date;category;base\n23/01/26;software;10.00\n2026-01-23;software;10.00\n"
+    page = text(preview(client, csv_text))
+    assert "1 ready to import" in page and "1 with errors" in page
+    commit(client, csv_text, [1, 2])
+    con = db.connect()
+    try:
+        assert [r["date"] for r in con.execute("SELECT date FROM entries")] == ["2026-01-23"]
+    finally:
+        con.close()
+
+
+def test_imported_rows_start_from_the_default_regime_of_a_non_iva_taxpayer(client):
+    set_settings(vat_registered=False)
+    csv_text = "date;kind;counterparty;base\n2026-03-01;income;Client;100.00\n"
+    commit(client, csv_text, [1])
+    con = db.connect()
+    try:
+        assert con.execute("SELECT regime, vat_cents FROM entries").fetchone()["regime"] == "exempt"
+    finally:
+        con.close()
+
+
+def test_exported_text_cannot_run_as_a_spreadsheet_formula_and_comes_back_unchanged(client):
+    client.post("/entries/new/income", data=dict(date="2026-02-05", counterparty="=HYPERLINK(\"http://x.example\")",
+                                                  description="-cmd", country="ES", regime="exempt", base="100",
+                                                  currency="EUR"))
+    exported = text(client.get("/export/entries.csv?year=2026"))
+    assert ";\"'=HYPERLINK(" in exported and ";'-cmd;" in exported and ";100,00;" in exported  # the amount stays a number
+    assert "income;;" in exported  # an empty cell stays empty
+    client.post("/entries/1/delete")
+    commit(client, exported, [1])
+    [row] = stored()
+    assert row["counterparty"] == '=HYPERLINK("http://x.example")' and row["description"] == "-cmd"

@@ -29,7 +29,6 @@ class ValidationResult:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     pdf: Optional[bytes] = None
-    raw: str = ""  # truncated raw response, kept for diagnostics
 
 
 def clean_file(content: str) -> str:
@@ -46,38 +45,41 @@ def build_payload(model: str, year: int, period: str, content: str, lang: str = 
     return payload
 
 
-def _ci(d: dict, key: str):
-    """Case-insensitive dict lookup (the service mixes RESPUESTA/respuesta)."""
-    for k, v in d.items():
-        if k.lower() == key.lower():
-            return v
-    return None
+def lower_keys(d: dict) -> dict:
+    """The dict with its keys trimmed and in lower case: the services mix RESPUESTA/respuesta, and a published
+    example has a key with a trailing space."""
+    return {str(k).strip().lower(): v for k, v in d.items()}
+
+
+def texts(value) -> List[str]:
+    """The service lists messages as strings; anything else is shown as text so nothing is lost."""
+    if not isinstance(value, list):
+        return []
+    return [v if isinstance(v, str) else json.dumps(v, ensure_ascii=False) for v in value]
 
 
 def parse_response(text: str) -> ValidationResult:
     """Interpret the JSON returned by ServValiDos."""
-    raw = text[:2000]
     try:
         data = json.loads(text)
     except ValueError:
-        return ValidationResult(False, errors=[str(Msg("aeat.err_not_json"))], raw=raw)
-    body = _ci(data, "respuesta") if isinstance(data, dict) else None
+        return ValidationResult(False, errors=[str(Msg("aeat.err_not_json"))])
+    body = lower_keys(data).get("respuesta") if isinstance(data, dict) else None
     if not isinstance(body, dict):
-        return ValidationResult(False, errors=[str(Msg("aeat.err_unexpected"))], raw=raw)
-    errors = _ci(body, "errores") or []
-    warnings = _ci(body, "avisos") or []
-    pdf_parts = _ci(body, "pdf") or []
+        return ValidationResult(False, errors=[str(Msg("aeat.err_unexpected"))])
+    body = lower_keys(body)
+    errors, warnings = texts(body.get("errores")), texts(body.get("avisos"))
+    pdf_parts = body.get("pdf") or []
     pdf = None
     if pdf_parts:
         try:
             pdf = base64.b64decode("".join(pdf_parts))
         except (ValueError, TypeError):
-            errors = list(errors) + [str(Msg("aeat.err_pdf_corrupt"))]
-    errors = list(errors)
+            errors.append(str(Msg("aeat.err_pdf_corrupt")))
     if not errors and pdf is None:
         # a success reply always carries the pre-filled PDF; without it there is nothing to show the user
         errors.append(str(Msg("aeat.err_no_pdf")))
-    return ValidationResult(ok=not errors, errors=errors, warnings=list(warnings), pdf=pdf, raw=raw)
+    return ValidationResult(ok=not errors, errors=errors, warnings=warnings, pdf=pdf)
 
 
 def validate(model: str, year: int, period: str, content: str, lang: str = "ES",
@@ -110,14 +112,6 @@ class LibrosValidation:
     warnings: List[str] = field(default_factory=list)
     info: List[str] = field(default_factory=list)
     periods: Dict[str, List[str]] = field(default_factory=dict)  # accepted periods by use: iva, renta
-    raw: str = ""
-
-
-def _texts(value) -> List[str]:
-    """The service lists messages as strings; anything else is shown as text so nothing is lost."""
-    if not isinstance(value, list):
-        return []
-    return [v if isinstance(v, str) else json.dumps(v, ensure_ascii=False) for v in value]
 
 
 def _periods(value) -> Dict[str, List[str]]:
@@ -136,17 +130,17 @@ def _decode(data: bytes) -> str:
 
 def parse_libros_response(text: str) -> LibrosValidation:
     """Interpret the JSON of the books validator: {resultado: {valido, mensaje}, errores, avisos, informacion}."""
-    raw = text[:2000]
     try:
         data = json.loads(text)
     except ValueError:
-        return LibrosValidation(False, errors=[str(Msg("aeat.err_not_json"))], raw=raw)
+        return LibrosValidation(False, errors=[str(Msg("aeat.err_not_json"))])
     result = data.get("resultado") if isinstance(data, dict) else None
     if not isinstance(result, dict) or "valido" not in result:
-        return LibrosValidation(False, errors=[str(Msg("aeat.err_unexpected"))], raw=raw)
-    return LibrosValidation(ok=result["valido"] is True or str(result["valido"]).strip().lower() == "true", message=str(result.get("mensaje") or ""),
-                            errors=_texts(data.get("errores")), warnings=_texts(data.get("avisos")),
-                            info=_texts(data.get("informacion")), periods=_periods(data.get("periodosvalidos")), raw=raw)
+        return LibrosValidation(False, errors=[str(Msg("aeat.err_unexpected"))])
+    valid = result["valido"] is True or str(result["valido"]).strip().lower() == "true"
+    return LibrosValidation(ok=valid, message=str(result.get("mensaje") or ""),
+                            errors=texts(data.get("errores")), warnings=texts(data.get("avisos")),
+                            info=texts(data.get("informacion")), periods=_periods(data.get("periodosvalidos")))
 
 
 def validate_libros(content: bytes, year: int, timeout: int = 120, url: str = LIBROS_VALIDATION_URL) -> LibrosValidation:

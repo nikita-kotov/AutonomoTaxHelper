@@ -6,11 +6,13 @@ from urllib.parse import urlparse
 
 from flask import request
 
+from .. import dates
+
 
 def current_year() -> int:
     """The year selected with ?year=, defaulting to the current one."""
     y = request.args.get("year", type=int)
-    return y if y and 2000 <= y <= 2100 else date.today().year
+    return y if y and dates.MIN_YEAR <= y <= dates.MAX_YEAR else date.today().year
 
 
 def safe_next(target: str, default: str) -> str:

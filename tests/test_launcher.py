@@ -167,3 +167,30 @@ def test_tray_menu_is_translated(fresh_app):
     for lang, word in (("ru", "Выход"), ("es", "Salir")):
         i18n.set_language(lang)
         assert i18n.t("tray.exit") == word and i18n.t("tray.open").endswith("Autonomo Tax Helper")
+
+
+def test_the_crash_window_speaks_the_saved_language(fresh_app):
+    from pathlib import Path
+
+    from taxhelper import tray
+    from tests.support import set_settings
+    for lang, start in (("ru", "Autonomo Tax Helper не запустился"), ("es", "Autonomo Tax Helper no ha podido"),
+                        ("en", "Autonomo Tax Helper could not start")):
+        set_settings(language=lang)
+        message = tray.crash_message(ValueError, "boom", Path("C:/data/app.log"))
+        assert message.startswith(start) and "ValueError: boom" in message and "app.log" in message
+
+
+def test_without_a_saved_language_the_crash_window_follows_the_system(fresh_app, monkeypatch):
+    from pathlib import Path
+
+    from taxhelper import tray
+    monkeypatch.setattr(tray, "_system_language", lambda: "es")
+    assert tray.crash_message(ValueError, "boom", Path("app.log")).startswith("Autonomo Tax Helper no ha podido")
+    monkeypatch.setattr(tray, "_language", lambda: 1 / 0)  # a damaged database: the language of the system still decides
+    assert tray.crash_message(ValueError, "boom", Path("app.log")).startswith("Autonomo Tax Helper no ha podido")
+
+
+def test_the_system_language_is_one_of_ours_or_english():
+    from taxhelper import i18n, tray
+    assert tray._system_language() in i18n.available()

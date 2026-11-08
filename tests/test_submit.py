@@ -13,8 +13,8 @@ from taxhelper.aeat.transport import (Certificate, TransportError, TransportResp
 from tests.support import set_settings, text
 
 THUMB = "AB" * 20
-CERT = Certificate(thumbprint=THUMB, subject="CN=GARCIA LOPEZ ANA - X1234567L", not_before="2025-01-01",
-                   not_after="2029-01-01", nif="X1234567L", name="GARCIA LOPEZ ANA")
+CERT = Certificate(thumbprint=THUMB, subject="CN=GARCIA LOPEZ ANA - X1234567L", not_after="2029-01-01",
+                   nif="X1234567L", name="GARCIA LOPEZ ANA")
 OK_ANSWER = {"respuesta": {"correcta": {"CodigoSeguroVerificacion ": "ABCDEF0123456789", "Fecha": "2026-11-06",
                                          "Hora": "10:30", "Expediente": "2026111111111111", "Justificante": "1307000000001",
                                          "urlPdf": "https://www2.aeat.example/pdf/1", "avisos": ["20932 - revise"]}}}
@@ -159,7 +159,7 @@ def test_the_certificate_must_be_chosen_valid_and_the_taxpayers_own(ready, trans
     set_settings(aeat_certificate="")
     assert "Choose a certificate" in text(ready.get("/submit/review?model=130&year=2026&q=1"))
     set_settings(aeat_certificate=THUMB)
-    transport.certs = [Certificate(THUMB, "CN=A - Z9999999Z", "2020-01-01", "2021-01-01", "Z9999999Z", "OTHER PERSON")]
+    transport.certs = [Certificate(THUMB, "CN=A - Z9999999Z", "2021-01-01", "Z9999999Z", "OTHER PERSON")]
     page = text(ready.get("/submit/review?model=130&year=2026&q=1"))
     assert "expired on 2021-01-01" in page and "Z9999999Z" in page and "only your own declarations" in page
     assert "cannot be sent yet" in text(send(ready, sha=sha)) and transport.calls == []
@@ -234,7 +234,7 @@ def run_returning(stdout: bytes, calls):
 def test_certificates_come_back_from_powershell_json():
     calls = []
     payload = json.dumps([{"thumbprint": "ab12", "subject": "CN=SURNAME NAME - 12345678Z, SN=SURNAME, G=NAME, "
-                           "SERIALNUMBER=IDCES-12345678Z, C=ES", "notBefore": "2025-01-01", "notAfter": "2029-01-01"}])
+                           "SERIALNUMBER=IDCES-12345678Z, C=ES", "notAfter": "2029-01-01"}])
     transport = WindowsStoreTransport(runner=run_returning(b"\xef\xbb\xbf" + payload.encode(), calls))
     [cert] = transport.certificates()
     assert (cert.thumbprint, cert.nif, cert.name) == ("AB12", "12345678Z", "SURNAME NAME") and not cert.expired()
@@ -242,7 +242,7 @@ def test_certificates_come_back_from_powershell_json():
 
 
 def test_a_single_certificate_unwrapped_by_powershell_is_still_a_list():
-    row = {"thumbprint": "ab", "subject": "CN=X", "notBefore": "2025-01-01", "notAfter": "2029-01-01"}
+    row = {"thumbprint": "ab", "subject": "CN=X", "notAfter": "2029-01-01"}
     assert len(WindowsStoreTransport(runner=run_returning(json.dumps(row).encode(), [])).certificates()) == 1
 
 
@@ -256,7 +256,7 @@ def test_the_body_goes_through_a_temporary_file_that_is_removed():
         seen["content"] = json.loads(open(body_file, encoding="utf-8").read())
         seen["file"] = body_file
         assert "F01" not in " ".join(command)  # the declaration never appears on a command line
-        out = {"status": 200, "location": "", "contentType": "application/json", "body": base64.b64encode(b'{"a":1}').decode()}
+        out = {"status": 200, "location": "", "body": base64.b64encode(b'{"a":1}').decode()}
         return subprocess.CompletedProcess(command, 0, json.dumps(out).encode(), b"")
 
     response = WindowsStoreTransport(runner=runner).post_json("https://x.example", {"F01": "ñ€"}, "AB")

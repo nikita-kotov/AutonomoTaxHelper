@@ -82,7 +82,7 @@
   <button class="primary" type="submit">{{ t('common.save') }}</button>
   <a class="btn" href="{{ url_for('entries.index') }}">{{ t('common.cancel') }}</a>
   {% if entry_id %}
-  <button class="danger" type="submit" form="del" onclick="return confirm({{ t('form.confirm_delete')|tojson }})">{{ t('common.delete') }}</button>
+  <button class="danger" type="submit" form="del" onclick='return confirm({{ t('form.confirm_delete')|tojson }})'>{{ t('common.delete') }}</button>
   {% endif %}
 </form>
 {% if entry_id %}<form id="del" method="post" action="{{ url_for('entries.delete', entry_id=entry_id) }}"></form>{% endif %}

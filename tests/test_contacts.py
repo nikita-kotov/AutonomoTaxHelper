@@ -1,4 +1,5 @@
 """Clients and suppliers: storage, pages, form autofill data, remembering from entries, import defaults."""
+
 import json
 import re
 
@@ -6,6 +7,7 @@ from taxhelper import db
 from taxhelper.repositories import ContactRepository
 from tests.support import category_id, text
 from tests.test_import import commit, preview
+
 
 CLIENT = {"name": "ACME CAPITAL", "country": "SC", "vat_id": "1234567-8", "email": "ap@acme.example",
           "address": "Office 1, Plaisance", "regime": "non_eu", "vat_rate": "", "withholding_rate": "0",
@@ -160,3 +162,29 @@ def test_pages_render_in_every_language_and_the_menu_links_to_contacts(client):
         assert client.get("/contacts/new/income").status_code == 200
         assert client.get("/contacts/1/edit").status_code == 200
         assert client.get("/entries/new/income").status_code == 200
+
+
+def test_contact_usage_ignores_the_case_and_spacing_of_the_name_in_entries(client):
+    client.post("/contacts/new/expense", data={"name": "Acme SL"})
+    for name in ("ACME SL", "Acme  SL"):  # another case, a double space: both are the same supplier
+        client.post("/entries/new/expense", data=dict(date="2026-02-01", counterparty=name, base="10", vat_rate="0",
+                                                       regime="no_vat", category_id=str(category_id("software")),
+                                                       country="ES", currency="EUR"))
+    con = db.connect()
+    try:
+        assert ContactRepository(con).usage() == {1: 2}
+    finally:
+        con.close()
+
+
+def test_remembering_the_same_party_twice_is_harmless(client):
+    con = db.connect()
+    try:
+        repo = ContactRepository(con)
+        entry = {"kind": "expense", "counterparty": "Acme  SL", "country": "ES", "vat_id": "", "regime": "domestic",
+                 "category_id": None, "vat_rate": "21", "withholding_rate": "0"}
+        assert repo.remember(entry) is True
+        assert repo.remember({**entry, "counterparty": "ACME SL"}) is False   # same name, other case and spacing
+        assert [r["name"] for r in repo.all()] == ["Acme SL"]
+    finally:
+        con.close()

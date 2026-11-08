@@ -101,6 +101,21 @@ class ImportPlan:
                 "total": sum(r.total_cents for r in ready)}
 
 
+FORMULA_STARTS = "=+-@"
+
+
+def csv_safe(value) -> str:
+    """Text for a CSV cell that a spreadsheet shows as typed: a leading = + - @ would be run as a formula, so the
+    text gets a quote in front (`unquote_cell` takes it off again on import)."""
+    value = "" if value is None else str(value)
+    return "'" + value if value.startswith(tuple(FORMULA_STARTS)) else value
+
+
+def unquote_cell(cell: str) -> str:
+    """The cell as typed: the quote that `csv_safe` put before a leading = + - @ is removed."""
+    return cell[1:] if len(cell) > 1 and cell[0] == "'" and cell[1] in FORMULA_STARTS else cell
+
+
 def decode(data: bytes) -> str:
     """Text of an uploaded file: UTF-8 (with or without BOM), else the Windows code page Excel uses."""
     try:
@@ -143,7 +158,7 @@ def _read_table(text: str):
         row = {}
         for name, cell in zip(names, cells):
             if name and name not in row:
-                row[name] = cell.strip()
+                row[name] = unquote_cell(cell.strip())
         rows.append(row)
     return rows, []
 

@@ -1,4 +1,5 @@
 """The typed settings object and its storage."""
+
 from dataclasses import fields
 from datetime import date
 from decimal import Decimal
@@ -7,6 +8,8 @@ import pytest
 
 from taxhelper import db
 from taxhelper.settings import Settings, SettingsRepository, decode, encode
+from tests.support import category_id, text
+from tests.test_profile import form
 
 
 @pytest.fixture()
@@ -107,3 +110,36 @@ def test_carry_in_is_kept_per_year(repo):
     assert repo.carry_in(2026) == 123_456 and repo.carry_in(2027) == 1_000 and repo.carry_in(2025) == 0
     repo.set_carry_in(2026, "not a number")
     assert repo.carry_in(2026) == 0  # unreadable text counts as no balance, it never crashes the reports
+
+
+@pytest.mark.parametrize("bad", ["NaN", "nan", "Infinity", "-Infinity", "sNaN"])
+def test_non_finite_numbers_are_rejected_not_500(client, bad):
+    r = client.post("/settings", data=form(irpf_rate_pct=bad))
+    assert r.status_code == 200 and "Invalid percentage" in text(r)
+    r = client.post("/settings", data=form(home_total_m2=bad))
+    assert r.status_code == 200 and "Areas must be numbers." in text(r)
+    r = client.post("/settings", data=form(home_affected_pct=bad))
+    assert r.status_code == 200 and "Invalid percentage" in text(r)
+    r = client.post("/entries/new/expense", data={"date": "2026-02-10", "base": "10", "regime": "domestic",
+                                                 "vat_rate": bad, "category_id": str(category_id("software"))})
+    assert r.status_code == 200 and "Invalid percentage" in text(r)
+    r = client.post("/api/preview", json={"kind": "expense", "regime": "domestic", "base": "10", "vat_rate": bad})
+    assert r.status_code == 200 and r.get_json() == {"ok": False}
+
+
+def test_the_settings_cache_is_dropped_on_every_write(repo):
+    assert repo.load().language == ""
+    repo.set_raw("language", "es")
+    assert repo.load().language == "es"
+    repo.update(language="ru")
+    assert repo.load().language == "ru"
+    repo.set_carry_in(2026, "10")
+    assert repo.carry_in(2026) == 1_000
+    assert repo.load() is repo.load()  # reads once between writes
+
+
+@pytest.mark.parametrize("registered,kind,expected", [
+    (True, "expense", "domestic"), (True, "income", "domestic"),
+    (False, "expense", "no_vat"), (False, "income", "exempt")])
+def test_default_regime_follows_the_iva_registration(registered, kind, expected):
+    assert Settings(vat_registered=registered).default_regime(kind) == expected
