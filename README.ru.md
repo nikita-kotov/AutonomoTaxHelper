@@ -2,6 +2,8 @@
 
 [English](README.md) · **Русский** · [Español](README.es.md)
 
+[![Tests](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml/badge.svg)](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml)
+
 Локальное веб-приложение для autónomo: учёт доходов и расходов, расчёт **modelo 303** (IVA), **modelo 130** (IRPF), данных для **Renta (modelo 100)** и трекер отчётности со сроками и статусами.
 Сервер слушает только `127.0.0.1`, данные хранятся на вашем компьютере. Интерфейс на русском, английском и испанском.
 

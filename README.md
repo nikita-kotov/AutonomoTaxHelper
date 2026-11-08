@@ -2,6 +2,8 @@
 
 **English** · [Русский](README.ru.md) · [Español](README.es.md)
 
+[![Tests](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml/badge.svg)](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml)
+
 A local web app for Spanish *autónomos*: bookkeeping of income and expenses, **modelo 303** (IVA), **modelo 130** (IRPF), data for the **Renta (modelo 100)**, and a filing tracker with deadlines and statuses.
 The server listens on `127.0.0.1` only and your data stays on your computer. The interface is available in English, Russian and Spanish.
 

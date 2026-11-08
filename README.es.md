@@ -2,6 +2,8 @@
 
 [English](README.md) · [Русский](README.ru.md) · **Español**
 
+[![Tests](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml/badge.svg)](https://github.com/nikita-kotov/AutonomoTaxHelper/actions/workflows/tests.yml)
+
 Aplicación web local para autónomos: contabilidad de ingresos y gastos, cálculo del **modelo 303** (IVA), del **modelo 130** (IRPF), datos para la **Renta (modelo 100)** y un seguimiento de declaraciones con plazos y estados.
 El servidor escucha solo en `127.0.0.1` y los datos se quedan en su ordenador. La interfaz está disponible en español, inglés y ruso.
 
