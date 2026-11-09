@@ -155,7 +155,7 @@ The database and documents (`taxhelper.db`, `documents/`) contain financial reco
 2. The app writes `taxhelper-backup-YYYYMMDD-HHMM.zip` (database and documents) there on start and after data changes, at most once every 6 hours; after a failed attempt the next one waits at least 15 minutes. The 30 latest copies and the first copy of each month are kept.
 3. Manual backup: "Back up now" or the "Download backup" link at the bottom of the page. A failed automatic backup is shown on the dashboard.
 
-**Restore:** close the app, unpack the chosen zip into the data folder replacing `taxhelper.db` and `documents`, start again.
+**Restore:** **Settings** → **Restore from a backup**: choose a zip file or a backup from the backup folder. The zip is checked first, and the current data is saved as a zip in the `before-restore` folder inside the data folder (the last three are kept); then the database and the documents are replaced.
 
 ## Interface languages
 

@@ -122,7 +122,7 @@ def init_app(app: Flask) -> None:
     @app.after_request
     def auto_backup_after_write(response):
         """After a successful data change, back up if the last backup is old enough."""
-        if request.method == "POST" and response.status_code < 400 and request.endpoint != "system.backup_now":
+        if request.method == "POST" and response.status_code < 400 and request.endpoint not in ("system.backup_now", "system.restore"):
             try:
                 bk.run_backup(svc().con)
             except Exception:  # never let a backup problem break saving data

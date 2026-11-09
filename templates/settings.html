@@ -161,6 +161,22 @@
 </form>
 <form id="backup-now" method="post" action="{{ url_for('system.backup_now') }}"></form>
 <div class="card">
+  <h2 style="margin-top:0">{{ t('settings.h_restore') }}</h2>
+  <p class="small muted">{{ t('settings.restore_hint') }}</p>
+  <form method="post" action="{{ url_for('system.restore') }}" enctype="multipart/form-data"
+        onsubmit='return confirm({{ t('settings.restore_confirm')|tojson }})'>
+    <label>{{ t('settings.restore_file') }} <input type="file" name="archive" accept=".zip"></label>
+    {% if backups %}
+    <label>{{ t('settings.restore_from_folder') }}
+      <select name="name">
+        <option value="">—</option>
+        {% for name, when in backups %}<option value="{{ name }}">{{ when.strftime('%Y-%m-%d %H:%M') }}</option>{% endfor %}
+      </select></label>
+    {% endif %}
+    <button>{{ t('settings.restore_btn') }}</button>
+  </form>
+</div>
+<div class="card">
   <h2 style="margin-top:0">{{ t('cats.title') }}</h2>
   <p class="small muted">{{ t('cats.intro') }}</p>
   <a class="btn" href="{{ url_for('categories.page') }}">{{ t('nav.categories') }}</a>

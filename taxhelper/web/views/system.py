@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import io
 from datetime import datetime
+from pathlib import Path
 
 from flask import (Blueprint, abort, current_app, flash, redirect, render_template, request, send_file,
                    send_from_directory, url_for)
 
 from ... import backup as bk
 from ... import db, i18n, launcher
+from ...i18n import t
 from ..helpers import safe_next
 from ..infra import svc
 
@@ -62,4 +64,33 @@ def backup_now():
     """Run the folder backup immediately, ignoring the minimum interval."""
     status, message = bk.run_backup(svc().con, force=True)
     flash(message, "ok" if status == "ok" else "error")
+    return redirect(url_for("settings.page"))
+
+
+RESTORE_MAX_UPLOAD = 4 * 1024 ** 3  # a backup zip holds every attached document, so it can be far larger than a form post
+
+
+@bp.post("/backup/restore")
+def restore():
+    """Replace the data with a backup: an uploaded zip, or one of the zips in the backup folder."""
+    request.max_content_length = RESTORE_MAX_UPLOAD
+    upload = request.files.get("archive")
+    chosen = request.form.get("name", "")
+    s = svc()
+    try:
+        if upload and upload.filename:
+            source, label = upload.stream, upload.filename
+        elif chosen:
+            folder = Path(s.settings.load().backup_dir.strip())
+            path = next((p for p in bk.list_backups(folder) if p.name == chosen), None)
+            if path is None:
+                raise bk.RestoreError("restore.not_in_folder", name=chosen)
+            source, label = path, path.name
+        else:
+            raise bk.RestoreError("restore.nothing_chosen")
+        saved = bk.restore_backup(s.con, source)
+    except bk.RestoreError as exc:
+        flash(exc.message(), "error")
+    else:
+        flash(t("restore.done", source=label, saved=saved), "ok")
     return redirect(url_for("settings.page"))

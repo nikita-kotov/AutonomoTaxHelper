@@ -155,7 +155,7 @@ La base de datos y los documentos (`taxhelper.db`, `documents/`) contienen regis
 2. La aplicación guarda allí `taxhelper-backup-AAAAMMDD-HHMM.zip` (base de datos y documentos) al arrancar y tras cambiar datos, como máximo cada 6 horas; tras un intento fallido, el siguiente espera al menos 15 minutos. Se conservan las 30 copias más recientes y la primera de cada mes.
 3. Copia manual: «Hacer copia ahora» o el enlace «Descargar copia» al pie de la página. Un fallo de la copia automática se muestra en el panel.
 
-**Restauración:** cierre la aplicación, descomprima el zip elegido en la carpeta de datos reemplazando `taxhelper.db` y `documents`, y arranque de nuevo.
+**Restauración:** **Ajustes** → **Restaurar una copia de seguridad**: elija un archivo zip o una copia de la carpeta de copias. Primero se comprueba el zip y los datos actuales se guardan en un zip dentro de la carpeta `before-restore` de la carpeta de datos (se conservan los tres últimos); después se sustituyen la base de datos y los documentos.
 
 ## Idiomas de la interfaz
 
