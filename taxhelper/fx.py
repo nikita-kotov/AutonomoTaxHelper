@@ -40,7 +40,7 @@ class Rate:
     source: str = SOURCE_ECB
 
 
-def convert_to_eur_cents(amount_cents: int, per_eur) -> int:
+def convert_to_eur_cents(amount_cents: int, per_eur: object) -> int:
     """Euro cents for an amount in another currency: amount / rate, rounded half-up."""
     rate = D(per_eur)
     if not rate.is_finite() or rate <= 0:
@@ -48,7 +48,7 @@ def convert_to_eur_cents(amount_cents: int, per_eur) -> int:
     return round_cents(D(amount_cents) / rate)
 
 
-def parse_rate(text) -> Decimal:
+def parse_rate(text: object) -> Decimal:
     """A positive finite exchange rate from user text ('1,1805' allowed). Raises ValueError otherwise."""
     try:
         rate = Decimal(str(text).strip().replace(",", "."))

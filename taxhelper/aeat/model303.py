@@ -8,6 +8,8 @@ prorrata (30305) are outside this builder's scope.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from ..calc import Vat303
 from ..i18n import UserError
 from .fixed import Record, Taxpayer, an, blanks, const, file_footer, file_header, num, pct, signed
@@ -153,7 +155,7 @@ def page_did(iban: str = "", sepa: str = "0") -> str:
     return r.text()
 
 
-def build(rep: Vat303, tp: Taxpayer, tipo: str = None, iban: str = "",
+def build(rep: Vat303, tp: Taxpayer, tipo: Optional[str] = None, iban: str = "",
           dev_nif: str = "", dev_version: str = "") -> str:
     """Full file content for the declaration (no line breaks)."""
     tp.validate()

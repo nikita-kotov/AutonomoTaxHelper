@@ -11,8 +11,9 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
+from ..codes import DeductionMode, Kind, Regime
 from .. import calc, i18n
 from ..i18n import Msg, UserError
 from ..repositories import EntryRepository
@@ -33,7 +34,7 @@ EXPENSE_CONCEPTS = {
     "equipment": "G03", "office": "G22", "marketing": "G22", "training": "G22", "transport": "G22",
     "bank": "G24", "other": "G37",
 }
-MODE_CONCEPTS = {"home_property": "G12", "home_supply": "G18"}
+MODE_CONCEPTS = {DeductionMode.HOME_PROPERTY: "G12", DeductionMode.HOME_SUPPLY: "G18"}
 DEFAULT_CONCEPT = "G37"
 INCOME_CONCEPT = "I01"
 
@@ -109,7 +110,7 @@ def _party(country: str, vat_id: str, regime: str, label: str, warnings: List[Ms
         warnings.append(Msg("libros.warn_placeholder", entry=label))
     if country == "ES":  # a Spanish NIF carries no type or country: those columns identify foreign parties
         return "", "", re.sub(r"[\s.\-/]", "", raw).upper()
-    if country in EU_COUNTRIES and regime in ("eu_b2b", "eu_reverse"):
+    if country in EU_COUNTRIES and regime in (Regime.EU_B2B, Regime.EU_REVERSE):
         prefix = "EL" if country == "GR" else country
         cleaned = re.sub(r"[\s.\-/]", "", raw).upper()
         return "02", country, cleaned if cleaned.startswith(prefix) else prefix + cleaned
@@ -174,9 +175,9 @@ def _income_lines(row, settings: Settings, warnings: List[Msg]) -> List[List[Cel
     number = _clip(row["number"], _INCOME_NUMBER_LIMIT, label, "number", warnings)
     if not number:
         warnings.append(Msg("libros.warn_number", entry=label))
-    calif, exenta = {"domestic": ("S1", ""), "exempt": ("", "E6")}.get(row["regime"], ("N2", ""))
-    rate = Decimal(row["vat_rate"] or "0") if row["regime"] == "domestic" else Decimal(0)
-    vat = row["vat_cents"] if row["regime"] == "domestic" else 0
+    calif, exenta = {Regime.DOMESTIC: ("S1", ""), Regime.EXEMPT: ("", "E6")}.get(row["regime"], ("N2", ""))
+    rate = Decimal(row["vat_rate"] or "0") if row["regime"] == Regime.DOMESTIC else Decimal(0)
+    vat = row["vat_cents"] if row["regime"] == Regime.DOMESTIC else 0
     lines, inconsistent = _iva_lines(row["base_cents"], vat, rate)
     if inconsistent:
         warnings.append(Msg("libros.warn_iva", entry=label))
@@ -211,7 +212,7 @@ def _expense_lines(row, irpf_cents: int, vat_deductible_cents: int, reception: i
     regime = row["regime"]
     nif_tipo, nif_pais, nif_id = _party(row["country"], row["vat_id"], regime, label, warnings)
     number = _clip(row["number"], _NUMBER_LIMIT, label, "number", warnings)
-    has_vat = regime != "no_vat"
+    has_vat = regime != Regime.NO_VAT
     if has_vat and not number:
         warnings.append(Msg("libros.warn_number", entry=label))
     # F6: accounting voucher (a fee, a rent receipt) without IVA; R1 for a credit note
@@ -233,14 +234,14 @@ def _expense_lines(row, irpf_cents: int, vat_deductible_cents: int, reception: i
     withholding = row["withholding_cents"] > 0  # IRPF retained from the payee (rent, modelo 115): written once per invoice
     out = []
     for position, ((base, line_rate, line_vat), expense, deductible_vat) in enumerate(zip(lines, expense_parts, vat_parts)):
-        values = dict(
+        values: Dict[str, Cell] = dict(
             year=on.year, period=_quarter_label(on), act_code=act_code, act_type=act_type or None, iae=iae or None,
             tipo_factura=tipo_factura, concepto=concept or None, gasto=_eur(expense) if concept else None,
             f_exp=on, f_op=on, numero=number or None, f_rec=on, rec_num=str(reception),
             nif_tipo=nif_tipo or None, nif_pais=nif_pais or None, nif_id=nif_id or None,
             nombre=name,
-            clave="09" if regime == "eu_reverse" else "01", bien_inversion="N",
-            isp="S" if regime == "non_eu_reverse" else "N", posterior="N",
+            clave="09" if regime == Regime.EU_REVERSE else "01", bien_inversion="N",
+            isp="S" if regime == Regime.NON_EU_REVERSE else "N", posterior="N",
             total=_eur(base if reverse else base + line_vat), base=_eur(base))
         if has_vat:
             values.update(tipo_iva=line_rate.quantize(Decimal("0.01")), cuota=_eur(line_vat),
@@ -278,7 +279,7 @@ def build_books(settings: Settings, rows: Sequence, year: int, upto: int = 4) ->
     for row, entry, irpf_cents in zip(rows, entries, irpf):
         if row["date"] > last_day:
             continue
-        if row["kind"] == "income":
+        if row["kind"] == Kind.INCOME:
             income.extend(_income_lines(row, settings, warnings))
             income_total += row["base_cents"]
             continue

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
+from .codes import Kind, Regime
 from . import calc, rent115, renta
 from .repositories import EntryRepository
 from .settings import SettingsRepository
@@ -50,14 +51,14 @@ class TaxReports:
         """The quarter's entries that touch the 303, each with the IVA deductible from it."""
         tax = self.tax_settings
         return [{"e": e, "vat_ded": calc.vat_deductible(e, tax)} for e in self.year_entries(year)
-                if calc.quarter_of(e.date) == quarter and (e.vat_cents or e.regime != "domestic")]
+                if calc.quarter_of(e.date) == quarter and (e.vat_cents or e.regime != Regime.DOMESTIC)]
 
     def irpf_by_category(self, year: int, quarter: int) -> Dict[str, int]:
         """Deductible IRPF expense per category, accumulated from 1 January to the end of the quarter."""
         entries = [e for e in self.year_entries(year) if e.date <= calc.quarter_end(year, quarter)]
         by_category: Dict[str, int] = {}
         for e, amount in zip(entries, calc.irpf_deductions(entries, self.tax_settings)):
-            if e.kind == "expense":
+            if e.kind == Kind.EXPENSE:
                 by_category[e.category] = by_category.get(e.category, 0) + amount
         return by_category
 
@@ -70,8 +71,8 @@ class TaxReports:
         for q in (1, 2, 3, 4):
             in_quarter = [(e, d) for e, d in zip(entries, deductions) if calc.quarter_of(e.date) == q]
             rows.append(QuarterFigures(
-                q, sum(e.base_cents for e, _ in in_quarter if e.kind == "income"),
-                sum(d for e, d in in_quarter if e.kind == "expense"), irpf[q - 1].c19, vat[q - 1].c71))
+                q, sum(e.base_cents for e, _ in in_quarter if e.kind == Kind.INCOME),
+                sum(d for e, d in in_quarter if e.kind == Kind.EXPENSE), irpf[q - 1].c19, vat[q - 1].c71))
         return rows
 
     def renta_estimate(self, year: int, paid_130: Dict[int, int], upto: int) -> renta.RentaEstimate:

@@ -11,7 +11,7 @@ import zipfile
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 from xml.sax.saxutils import escape
 
 Cell = Union[None, str, int, Decimal, date]
@@ -47,7 +47,7 @@ def _text(value: str) -> str:
 class _Strings:
     def __init__(self) -> None:
         self.items: List[str] = []
-        self._index = {}
+        self._index: Dict[str, int] = {}
 
     def add(self, value: str) -> int:
         if value not in self._index:

@@ -6,6 +6,7 @@ import sqlite3
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from ... import calc
+from ...codes import DeductionMode
 from ...i18n import t
 from ...repositories import CategoryRepository
 from ..forms import parse_cap
@@ -15,7 +16,7 @@ bp = Blueprint("categories", __name__)
 
 
 def _modes():
-    irpf, vat = request.form.get("irpf_mode", "full"), request.form.get("vat_mode", "full")
+    irpf, vat = request.form.get("irpf_mode", DeductionMode.FULL), request.form.get("vat_mode", DeductionMode.FULL)
     return (irpf, vat) if irpf in calc.IRPF_MODES and vat in calc.VAT_MODES else None
 
 

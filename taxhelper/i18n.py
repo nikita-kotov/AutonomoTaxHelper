@@ -17,7 +17,7 @@ import contextvars
 import json
 from datetime import date
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 LOCALES_DIR = Path(__file__).resolve().parent.parent / "locales"
 FALLBACK = "en"
@@ -82,7 +82,7 @@ class Msg:
     """A translatable message with parameters, translated lazily when displayed."""
     __slots__ = ("key", "params")
 
-    def __init__(self, key: str, **params):
+    def __init__(self, key: str, **params: object) -> None:
         self.key = key
         self.params = params
 
@@ -96,7 +96,7 @@ class Msg:
 class UserError(ValueError):
     """An error whose message is meant for the user and is translated when shown."""
 
-    def __init__(self, key: str, **params):
+    def __init__(self, key: str, **params: object) -> None:
         self.msg = Msg(key, **params)
         super().__init__(key)
 
@@ -104,20 +104,22 @@ class UserError(ValueError):
         return str(self.msg)
 
 
-def t(key, **params) -> str:
+def t(key: Union[str, Msg], **params: object) -> str:
     """Translate a key (or a Msg) into the current language, falling back to English, then to the key."""
     if isinstance(key, Msg):
-        key, params = key.key, key.params
-    elif not isinstance(key, str):
+        name, params = key.key, key.params
+    elif isinstance(key, str):
+        name = key
+    else:
         return str(key)
     text = None
     for code in (current_language(), FALLBACK):
-        text = load(code).get(key)
+        text = load(code).get(name)
         if isinstance(text, str):
             break
         text = None
     if text is None:
-        return key
+        return name
     if not params:
         return text
     try:
@@ -130,15 +132,16 @@ def format_money(cents: int, code: Optional[str] = None, whole: bool = False) ->
     """Format integer cents using the locale's separators and currency pattern; `whole` rounds to whole euros."""
     m = meta(code)
     cents = int(cents)
-    euros, rem = divmod(abs(cents), 100)
+    euros, whole_cents = divmod(abs(cents), 100)
+    rem: Optional[int] = whole_cents
     if whole:
-        euros, rem = euros + (rem >= 50), None
+        euros, rem = euros + (whole_cents >= 50), None
     grouped = f"{euros:,}".replace(",", m["thousands"])
     text = m["money"].format(amount=grouped if rem is None else f"{grouped}{m['decimal']}{rem:02d}")
     return "-" + text if cents < 0 and (euros or rem) else text
 
 
-def format_date(d, code: Optional[str] = None) -> str:
+def format_date(d: Union[date, str, None], code: Optional[str] = None) -> str:
     """Format a date (or ISO string) with the locale's date format."""
     if not d:
         return ""

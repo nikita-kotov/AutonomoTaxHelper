@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Dict
 
 from ..aeat import service as aeat_service
 from .infra import svc
 
 
-def aeat_card(model: str, year: int, quarter: int) -> dict:
+def aeat_card(model: str, year: int, quarter: int) -> Dict[str, Any]:
     """What the card needs: the built file (or why it cannot be built) and the latest validation."""
     s = svc()
-    card = {"model": model, "year": year, "q": quarter, "built": None, "error": None,
+    card: Dict[str, Any] = {"model": model, "year": year, "q": quarter, "built": None, "error": None,
             "check": None, "errors": [], "warnings": [], "current": False}
     try:
         card["built"] = aeat_service.build_file(s.settings.load(), s.reports, model, year, quarter)

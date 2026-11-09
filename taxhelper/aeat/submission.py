@@ -168,6 +168,8 @@ def submit(*, transport: Transport, settings: Settings, reports: TaxReports, che
     if pre.needs_nrc and not _NRC.fullmatch(nrc):
         raise UserError("submit.err_nrc")
     built, certificate = pre.built, pre.certificate
+    if certificate is None:  # without a certificate the preflight reports an issue, so this is not reached
+        raise UserError("submit.err_blocked")
     response = transport.post_json(url, build_payload(built, certificate, nrc), certificate.thumbprint)
     result = parse_response(response)
 

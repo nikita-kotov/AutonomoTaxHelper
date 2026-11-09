@@ -13,6 +13,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from .codes import DeductionMode, HomeRule, IrpfMethod, Kind, Regime, VatHomeMode
 from . import i18n
 from .i18n import Msg
 
@@ -20,22 +21,22 @@ from .i18n import Msg
 
 # Code lists only: display labels live in locales/*.json under regime.income.<code>,
 # regime.expense.<code>, irpf.<code> and vat.<code>.
-INCOME_REGIMES = ("domestic", "exempt", "eu_b2b", "non_eu")
-EXPENSE_REGIMES = ("domestic", "eu_reverse", "non_eu_reverse", "no_vat")
-IRPF_MODES = ("full", "home_supply", "home_property", "none")
-VAT_MODES = ("full", "home_supply", "home_property", "none")
-IRPF_METHODS = ("simplificada", "normal")
-HOME_RULES = ("share", "share_factor")  # IRPF rule for home costs: affected %, or affected % x 30 %
+INCOME_REGIMES = (Regime.DOMESTIC, Regime.EXEMPT, Regime.EU_B2B, Regime.NON_EU)
+EXPENSE_REGIMES = (Regime.DOMESTIC, Regime.EU_REVERSE, Regime.NON_EU_REVERSE, Regime.NO_VAT)
+IRPF_MODES = tuple(DeductionMode)
+VAT_MODES = tuple(DeductionMode)
+IRPF_METHODS = tuple(IrpfMethod)
+HOME_RULES = tuple(HomeRule)  # IRPF rule for home costs: affected %, or affected % x 30 %
 
 DIFFICULT_CAP_CENTS = 200_000  # gastos de dificil justificacion: the yearly cap, 2 000 EUR
 
-REVERSE_REGIMES = ("eu_reverse", "non_eu_reverse")
-RATELESS_REGIMES = ("exempt", "eu_b2b", "non_eu", "no_vat")  # no IVA rate applies: the rate is forced to 0
+REVERSE_REGIMES = (Regime.EU_REVERSE, Regime.NON_EU_REVERSE)
+RATELESS_REGIMES = (Regime.EXEMPT, Regime.EU_B2B, Regime.NON_EU, Regime.NO_VAT)  # no IVA rate applies: the rate is forced to 0
 
 
 # ----------------------------------------------------------------- helpers
 
-def D(value) -> Decimal:
+def D(value: object) -> Decimal:
     """Convert any numeric-like value to Decimal."""
     return value if isinstance(value, Decimal) else Decimal(str(value))
 
@@ -73,7 +74,7 @@ def _plain_number(digits: str, local_decimal: str) -> str:
     return f"{head}.{tail}"
 
 
-def parse_money(text, decimal_separator: Optional[str] = None) -> int:
+def parse_money(text: object, decimal_separator: Optional[str] = None) -> int:
     """Parse an amount such as '1.234,56', '1,234.56', '1234.56', '1 234,56' or '-12' into cents.
 
     `decimal_separator` ('.' or ',') is the user's decimal mark; it settles the ambiguous '1.500' /
@@ -94,7 +95,7 @@ def parse_money(text, decimal_separator: Optional[str] = None) -> int:
         raise ValueError(f"bad amount: {text!r}") from exc
 
 
-def fmt_percent(value) -> str:
+def fmt_percent(value: object) -> str:
     """Plain decimal text for a percentage: 10 -> '10', 7.5 -> '7.5', 0 -> '0' (never '1E+1')."""
     value = D(value)
     return format(value.normalize(), "f") if value else "0"
@@ -122,18 +123,18 @@ class TaxSettings:
     # IRPF rule per kind of home cost: 'share' = invoice x affected %, 'share_factor' = also x supplies_factor.
     # Supplies (electricity, gas, water, internet): the general rule is share_factor (art. 30.2.5a LIRPF).
     # Rent, IBI, community fees, home insurance: the law allows 'share'; many gestors play safe with 'share_factor'.
-    supplies_rule: str = "share_factor"
-    property_rule: str = "share"
+    supplies_rule: HomeRule = HomeRule.SHARE_FACTOR
+    property_rule: HomeRule = HomeRule.SHARE
     # 'share' = IVA of supplies deducted by the affected share only (default);
     # 'share_factor' = also multiply by supplies_factor, which deducts less;
     # 'none' = no IVA deduction, the full invoice is the IRPF cost.
-    vat_home_mode: str = "share"
+    vat_home_mode: VatHomeMode = VatHomeMode.SHARE
     difficult_enabled: bool = True  # apply gastos de dificil justificacion (only in simplificada)
     difficult_pct: Decimal = Decimal("0.05")
     difficult_cap_cents: int = DIFFICULT_CAP_CENTS
     prev_year_net_yield_cents: Optional[int] = None  # for 130 casilla 13
     irpf_rate: Decimal = Decimal("0.20")  # 130 rate (20% general, 8% Ceuta/Melilla)
-    irpf_method: str = "simplificada"  # 'simplificada' | 'normal' (estimacion directa)
+    irpf_method: IrpfMethod = IrpfMethod.SIMPLIFICADA  # estimacion directa
     vat_registered: bool = True  # False: activity without IVA (no deductions, no 303)
     # Years in which the 20 % reduction for starting an activity applies in the Renta (empty = it is off).
     start_reduction_years: Tuple[int, ...] = ()
@@ -143,24 +144,24 @@ class TaxSettings:
         """The affected part of the home as a fraction 0..1 (11 % -> 0.11)."""
         return min(max(self.home_affected_pct / 100, Decimal(0)), Decimal(1))
 
-    def home_share(self, rule: str) -> Decimal:
+    def home_share(self, rule: HomeRule) -> Decimal:
         """The part of a home cost that is deductible under a rule: the affected %, times the supplies
         factor (30 %) when the rule is 'share_factor'."""
-        return self.affected_share * (self.supplies_factor if rule == "share_factor" else Decimal(1))
+        return self.affected_share * (self.supplies_factor if rule == HomeRule.SHARE_FACTOR else Decimal(1))
 
 
 @dataclass(frozen=True)
 class Entry:
     """One income or expense record, joined with its category rules."""
-    kind: str  # 'income' | 'expense'
+    kind: Kind
     date: date
-    regime: str
+    regime: Regime
     base_cents: int
     vat_rate: Decimal = Decimal(0)
     vat_cents: int = 0
     withholding_cents: int = 0
-    irpf_mode: str = "full"
-    vat_mode: str = "full"
+    irpf_mode: DeductionMode = DeductionMode.FULL
+    vat_mode: DeductionMode = DeductionMode.FULL
     category: str = ""
     description: str = ""
     category_cap_cents: Optional[int] = None  # annual cap of the category's IRPF deduction
@@ -171,7 +172,7 @@ class Entry:
 
 # ----------------------------------------------------------------- per entry
 
-def compute_vat(regime: str, base_cents: int, rate: Decimal, entered_vat_cents: Optional[int]) -> int:
+def compute_vat(regime: Regime, base_cents: int, rate: Decimal, entered_vat_cents: Optional[int]) -> int:
     """Return the VAT amount (cents) to store for an entry.
 
     - domestic: the amount printed on the invoice if given, else base*rate.
@@ -180,7 +181,7 @@ def compute_vat(regime: str, base_cents: int, rate: Decimal, entered_vat_cents: 
     """
     if regime in REVERSE_REGIMES:
         return round_cents(D(base_cents) * D(rate) / 100)
-    if regime == "domestic":
+    if regime == Regime.DOMESTIC:
         if entered_vat_cents is not None:
             return entered_vat_cents
         return round_cents(D(base_cents) * D(rate) / 100)
@@ -189,20 +190,20 @@ def compute_vat(regime: str, base_cents: int, rate: Decimal, entered_vat_cents: 
 
 def vat_deductible(e: Entry, s: TaxSettings) -> int:
     """IVA soportado that can be deducted in the 303 for an expense entry."""
-    if e.kind != "expense" or e.regime == "no_vat" or e.vat_cents == 0 or not s.vat_registered:
+    if e.kind != Kind.EXPENSE or e.regime == Regime.NO_VAT or e.vat_cents == 0 or not s.vat_registered:
         return 0
     v = D(e.vat_cents)
-    if e.vat_mode == "full":
+    if e.vat_mode == DeductionMode.FULL:
         return e.vat_cents
-    if e.vat_mode == "none":
+    if e.vat_mode == DeductionMode.NONE:
         return 0
     share = s.affected_share
-    if e.vat_mode == "home_property":
+    if e.vat_mode == DeductionMode.HOME_PROPERTY:
         return round_cents(v * share)
-    if e.vat_mode == "home_supply":
-        if s.vat_home_mode == "none":
+    if e.vat_mode == DeductionMode.HOME_SUPPLY:
+        if s.vat_home_mode == VatHomeMode.NONE:
             return 0  # the whole invoice, IVA included, goes into the IRPF cost
-        factor = s.supplies_factor if s.vat_home_mode == "share_factor" else Decimal(1)
+        factor = s.supplies_factor if s.vat_home_mode == VatHomeMode.SHARE_FACTOR else Decimal(1)
         return round_cents(v * share * factor)
     raise ValueError(f"unknown vat_mode {e.vat_mode!r}")
 
@@ -212,16 +213,16 @@ def irpf_deductible(e: Entry, s: TaxSettings) -> int:
 
     Non-recoverable IVA is part of the expense (cost = base + VAT not deducted).
     """
-    if e.kind != "expense":
+    if e.kind != Kind.EXPENSE:
         return 0
     cost = D(e.base_cents + e.vat_cents - vat_deductible(e, s))
-    if e.irpf_mode == "full":
+    if e.irpf_mode == DeductionMode.FULL:
         return round_cents(cost)
-    if e.irpf_mode == "none":
+    if e.irpf_mode == DeductionMode.NONE:
         return 0
-    if e.irpf_mode == "home_property":
+    if e.irpf_mode == DeductionMode.HOME_PROPERTY:
         return round_cents(cost * s.home_share(s.property_rule))
-    if e.irpf_mode == "home_supply":
+    if e.irpf_mode == DeductionMode.HOME_SUPPLY:
         return round_cents(cost * s.home_share(s.supplies_rule))
     raise ValueError(f"unknown irpf_mode {e.irpf_mode!r}")
 
@@ -295,8 +296,8 @@ def build_303(entries: Iterable[Entry], s: TaxSettings, year: int, quarter: int,
     for e in entries:
         if e.date.year != year or quarter_of(e.date) != quarter:
             continue
-        if e.kind == "income":
-            if e.regime == "domestic":
+        if e.kind == Kind.INCOME:
+            if e.regime == Regime.DOMESTIC:
                 rate = _whole_rate(e.vat_rate)
                 if e.base_cents < 0 or e.vat_cents < 0:
                     # credit note / rectification: "modificacion de bases y cuotas" (casillas 14-15)
@@ -309,26 +310,26 @@ def build_303(entries: Iterable[Entry], s: TaxSettings, year: int, quarter: int,
                     r.warnings.append(Msg("warn.vat_rate_unsupported", name=e.description, rate=e.vat_rate))
                 else:
                     r.info_exempt_base += e.base_cents
-            elif e.regime == "exempt":
+            elif e.regime == Regime.EXEMPT:
                 r.info_exempt_base += e.base_cents
-            elif e.regime == "eu_b2b":
+            elif e.regime == Regime.EU_B2B:
                 r.info_eu_services_base += e.base_cents
-            elif e.regime == "non_eu":
+            elif e.regime == Regime.NON_EU:
                 r.info_non_eu_base += e.base_cents
         else:  # expense
-            if e.regime == "eu_reverse":
+            if e.regime == Regime.EU_REVERSE:
                 r.c10 += e.base_cents
                 r.c11 += e.vat_cents
                 ded = vat_deductible(e, s)
                 r.c36 += e.base_cents
                 r.c37 += ded
-            elif e.regime == "non_eu_reverse":
+            elif e.regime == Regime.NON_EU_REVERSE:
                 r.c12 += e.base_cents
                 r.c13 += e.vat_cents
                 ded = vat_deductible(e, s)
                 r.c28 += e.base_cents
                 r.c29 += ded
-            elif e.regime == "domestic" and e.vat_cents != 0:
+            elif e.regime == Regime.DOMESTIC and e.vat_cents != 0:
                 ded = vat_deductible(e, s)
                 if ded:
                     # base column: proportional base for the deductible part
@@ -391,7 +392,7 @@ def minoracion_110_3c(prev_year_net_yield_cents: Optional[int]) -> int:
 
 def difficult_provision(net_before_cents: int, s: TaxSettings) -> int:
     """5% of positive net yield, capped (gastos de dificil justificacion)."""
-    if not s.difficult_enabled or s.irpf_method != "simplificada" or net_before_cents <= 0:
+    if not s.difficult_enabled or s.irpf_method != IrpfMethod.SIMPLIFICADA or net_before_cents <= 0:
         return 0
     return min(round_cents(D(net_before_cents) * s.difficult_pct), s.difficult_cap_cents)
 
@@ -430,7 +431,7 @@ def build_130_year(entries: List[Entry], s: TaxSettings, year: int, upto: int = 
         end = quarter_end(year, q)
         ytd = [e for e in entries if e.date.year == year and e.date <= end]
         r = Irpf130(year=year, quarter=q)
-        r.income = sum(e.base_cents for e in ytd if e.kind == "income")
+        r.income = sum(e.base_cents for e in ytd if e.kind == Kind.INCOME)
         r.expenses_gross = sum(irpf_deductions(ytd, s))
         r.difficult = difficult_provision(r.income - r.expenses_gross, s)
         r.c01 = r.income
@@ -438,7 +439,7 @@ def build_130_year(entries: List[Entry], s: TaxSettings, year: int, upto: int = 
         r.c03 = r.c01 - r.c02
         r.c04 = round_cents(D(max(r.c03, 0)) * s.irpf_rate)
         r.c05 = prev_c07_pos_sum - prev_c16_sum
-        r.c06 = sum(e.withholding_cents for e in ytd if e.kind == "income")
+        r.c06 = sum(e.withholding_cents for e in ytd if e.kind == Kind.INCOME)
         r.c07 = r.c04 - r.c05 - r.c06
         r.c12 = max(r.c07, 0)
         r.c13 = minoracion_110_3c(s.prev_year_net_yield_cents)
@@ -491,9 +492,9 @@ def build_annual(entries: List[Entry], s: TaxSettings, year: int, opening_vat_ca
     """Yearly summary for the Renta (rendimientos de actividades economicas)."""
     a = Annual(year=year)
     ye = [e for e in entries if e.date.year == year]
-    a.income = sum(e.base_cents for e in ye if e.kind == "income")
+    a.income = sum(e.base_cents for e in ye if e.kind == Kind.INCOME)
     for e, amt in zip(ye, irpf_deductions(ye, s)):
-        if e.kind == "expense" and amt:
+        if e.kind == Kind.EXPENSE and amt:
             a.expenses_by_category[e.category] = a.expenses_by_category.get(e.category, 0) + amt
     a.expenses_total = sum(a.expenses_by_category.values())
     a.net_before_difficult = a.income - a.expenses_total
@@ -501,7 +502,7 @@ def build_annual(entries: List[Entry], s: TaxSettings, year: int, opening_vat_ca
     a.net_yield = a.net_before_difficult - a.difficult
     a.start_reduction = start_reduction(a.net_yield, year, s)
     a.net_yield_reduced = a.net_yield - a.start_reduction
-    a.withholdings = sum(e.withholding_cents for e in ye if e.kind == "income")
+    a.withholdings = sum(e.withholding_cents for e in ye if e.kind == Kind.INCOME)
     q130 = build_130_year(entries, s, year)
     a.pagos_fraccionados_calc = sum(max(r.c19, 0) for r in q130)
     q303 = build_303_year(entries, s, year, 4, opening_vat_carry)

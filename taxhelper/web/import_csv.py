@@ -10,10 +10,11 @@ import csv
 import io
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from werkzeug.datastructures import MultiDict
 
+from ..codes import Kind
 from .. import calc, fx
 from ..fx import FxError
 from ..i18n import t
@@ -55,7 +56,7 @@ TEMPLATE_ROWS = [
     ["2026-02-28", "expense", "A-77", "Example Cloud Inc", "US", "", "Subscription", "software",
      "non_eu_reverse", "USD", "20.00", "", "21", "", ""],
 ]
-_KINDS = {"expense": "expense", "gasto": "expense", "income": "income", "ingreso": "income"}
+_KINDS = {"expense": Kind.EXPENSE, "gasto": Kind.EXPENSE, "income": Kind.INCOME, "ingreso": Kind.INCOME}
 
 
 @dataclass
@@ -63,14 +64,14 @@ class ImportRow:
     """One data row of the file: what will be stored (if valid) and what the preview shows."""
     index: int  # 1-based position among the file's data rows
     shown: Dict[str, str]
-    values: Optional[dict] = None
+    values: dict = field(default_factory=dict)  # empty while the row is invalid
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     duplicate: str = ""  # '' | 'ledger' | 'file'
 
     @property
     def ok(self) -> bool:
-        return not self.errors and self.values is not None
+        return not self.errors and bool(self.values)
 
     @property
     def preselected(self) -> bool:
@@ -254,13 +255,13 @@ def _build_row(number: int, raw: Dict[str, str], settings, categories, contacts,
     form["description"] = known("description")
     form["regime"] = known("regime") or settings.default_regime(kind)
     form["vat_rate"] = known("vat_rate") or calc.fmt_percent(settings.default_vat_rate)
-    if kind == "income":
+    if kind == Kind.INCOME:
         form["withholding_rate"] = known("withholding_rate") or calc.fmt_percent(settings.default_withholding_rate)
     else:  # a retention the user withholds from a landlord (modelo 115): from the file or the supplier's default
         form["withholding_rate"] = known("withholding_rate")
     form["currency"] = (raw.get("currency") or fx.EUR).upper()
 
-    if kind == "expense":
+    if kind == Kind.EXPENSE:
         category = _find_category(categories, raw.get("category", ""))
         if category is None and not raw.get("category") and contact and contact["category_id"]:
             category = next((c for c in categories if c["id"] == contact["category_id"]), None)

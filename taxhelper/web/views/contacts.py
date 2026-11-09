@@ -5,6 +5,7 @@ import sqlite3
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
+from ...codes import Kind
 from ...i18n import t
 from ..forms import parse_contact
 from ..infra import svc
@@ -13,7 +14,7 @@ bp = Blueprint("contacts", __name__)
 
 
 def _kind_arg(value):
-    return value if value in ("income", "expense") else None
+    return value if value in tuple(Kind) else None
 
 
 def _form_page(e, kind, contact_id=None):

@@ -4,6 +4,8 @@ File = header record DR13000 + page DR13001 (600 chars) + closing tag.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from ..calc import Irpf130
 from ..i18n import UserError
 from .fixed import Record, Taxpayer, an, blanks, const, file_footer, file_header, num, signed
@@ -52,7 +54,7 @@ def page1(rep: Irpf130, tp: Taxpayer, tipo: str, iban: str = "") -> str:
     return r.text()
 
 
-def build(rep: Irpf130, tp: Taxpayer, tipo: str = None, iban: str = "",
+def build(rep: Irpf130, tp: Taxpayer, tipo: Optional[str] = None, iban: str = "",
           dev_nif: str = "", dev_version: str = "") -> str:
     """Full file content for the declaration (no line breaks)."""
     tp.validate()

@@ -10,9 +10,10 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional, TypeVar
 
 from .. import calc, deadlines, fx, i18n, renta
+from ..codes import FilingStatus, FxMode, HomeRule, Kind, PaymentMethod, Regime, VatHomeMode, VatNegative
 from ..dates import parse_date
 from ..i18n import UserError, t
 from ..settings import (ACTIVITY_CODES, FX_MODES, PAYMENT_METHODS, VAT_HOME_MODES, VAT_NEGATIVE_MODES, Settings, encode,
@@ -83,15 +84,15 @@ def parse_entry(form, kind: str) -> EntryFormResult:
     v["counterparty"] = " ".join(form.get("counterparty", "").split())  # same spelling rule as the contacts
     v["country"] = (form.get("country", "ES").strip().upper() or "ES")[:2]
 
-    regimes = calc.INCOME_REGIMES if kind == "income" else calc.EXPENSE_REGIMES
-    v["regime"] = form.get("regime", "domestic")
+    regimes = calc.INCOME_REGIMES if kind == Kind.INCOME else calc.EXPENSE_REGIMES
+    v["regime"] = form.get("regime", Regime.DOMESTIC)
     if v["regime"] not in regimes:
         errors.append(t("err.regime"))
 
     _parse_money_fields(form, v, errors, warnings)
     _parse_vat_fields(form, kind, v, errors)
 
-    if kind == "expense":
+    if kind == Kind.EXPENSE:
         category = form.get("category_id", type=int)
         if not category:
             errors.append(t("err.category"))
@@ -185,7 +186,7 @@ def parse_contact(form) -> ContactFormResult:
     """Validate the contact form: a client or a supplier and the values new entries start from."""
     errors: List[str] = []
     v: Dict[str, object] = {"kind": form.get("kind", "")}
-    if v["kind"] not in ("income", "expense"):
+    if v["kind"] not in tuple(Kind):
         errors.append(t("contacts.err_kind"))
     v["name"] = " ".join(form.get("name", "").split())
     if not v["name"]:
@@ -196,7 +197,7 @@ def parse_contact(form) -> ContactFormResult:
     if v["email"] and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", str(v["email"])):
         errors.append(t("contacts.err_email"))
 
-    regimes = calc.INCOME_REGIMES if v["kind"] == "income" else calc.EXPENSE_REGIMES
+    regimes = calc.INCOME_REGIMES if v["kind"] == Kind.INCOME else calc.EXPENSE_REGIMES
     v["regime"] = form.get("regime", "")
     if v["regime"] and v["regime"] not in regimes:
         errors.append(t("err.regime"))
@@ -208,7 +209,7 @@ def parse_contact(form) -> ContactFormResult:
                 v[name] = calc.fmt_percent(parse_percent(text))
             except UserError as exc:
                 errors.append(str(exc))
-    v["category_id"] = (form.get("category_id", type=int) or None) if v["kind"] == "expense" else None
+    v["category_id"] = (form.get("category_id", type=int) or None) if v["kind"] == Kind.EXPENSE else None
     return ContactFormResult(v, errors)
 
 
@@ -235,10 +236,13 @@ def _probe_writable(folder: str) -> Optional[str]:
     return None
 
 
-def _choice(form, name: str, allowed, default: str) -> str:
-    """The posted value when it is one of `allowed`, otherwise the default."""
+_T = TypeVar("_T", bound=str)
+
+
+def _choice(form, name: str, allowed: Iterable[_T], default: _T) -> _T:
+    """The member of `allowed` that equals the posted value, otherwise the default."""
     value = form.get(name)
-    return value if value in allowed else default
+    return next((member for member in allowed if member == value), default)
 
 
 def _parse_percents(form, errors: List[str]) -> Dict[str, Decimal]:
@@ -281,7 +285,7 @@ def _parse_taxpayer(form, errors: List[str]):
     if nif and len(nif) != 9:
         errors.append(t("err.nif_len9"))
     iban = form.get("holder_iban", "").replace(" ", "").upper()
-    payment = _choice(form, "payment_method", PAYMENT_METHODS, "nrc")
+    payment = _choice(form, "payment_method", PAYMENT_METHODS, PaymentMethod.NRC)
     if payment == "domiciliacion" and not iban:
         errors.append(t("err.iban_domic"))
     elif iban and not is_valid_iban(iban):
@@ -361,13 +365,13 @@ def parse_settings(form, current: Settings) -> SettingsFormResult:
         activity_code=_choice(form, "activity_code", ACTIVITY_CODES, "A05"),
         iae_epigraph=form.get("iae_epigraph", "").strip()[:5],
         default_vat_rate=percents["default_vat_rate"], default_withholding_rate=percents["default_withholding_rate"],
-        fx_mode=_choice(form, "fx_mode", FX_MODES, "auto"),
+        fx_mode=_choice(form, "fx_mode", FX_MODES, FxMode.AUTO),
         home_total_m2=home_total, home_affected_pct=percents["home_affected_pct"],
         supplies_factor=percents["supplies_factor_pct"] / 100,
-        supplies_rule=_choice(form, "supplies_rule", calc.HOME_RULES, "share_factor"),
-        property_rule=_choice(form, "property_rule", calc.HOME_RULES, "share"),
-        vat_home_mode=_choice(form, "vat_home_mode", VAT_HOME_MODES, "share"),
-        vat_negative_4t=_choice(form, "vat_negative_4t", VAT_NEGATIVE_MODES, "compensate"),
+        supplies_rule=_choice(form, "supplies_rule", calc.HOME_RULES, HomeRule.SHARE_FACTOR),
+        property_rule=_choice(form, "property_rule", calc.HOME_RULES, HomeRule.SHARE),
+        vat_home_mode=_choice(form, "vat_home_mode", VAT_HOME_MODES, VatHomeMode.SHARE),
+        vat_negative_4t=_choice(form, "vat_negative_4t", VAT_NEGATIVE_MODES, VatNegative.COMPENSATE),
         difficult_enabled=bool(form.get("difficult_enabled")), difficult_pct=percents["difficult_pct_pct"] / 100,
         difficult_cap_cents=cap if cap is not None else calc.DIFFICULT_CAP_CENTS,
         prev_year_net_yield_cents=money["prev_year_net_yield_eur"],
@@ -395,9 +399,7 @@ def parse_filing(form, row) -> FilingFormResult:
     except ValueError:
         errors.append(t("err.filing_due"))
         due = row["due_date"]
-    status = form.get("status", "pending")
-    if status not in ("pending", "filed", "not_required"):
-        status = "pending"
+    status = _choice(form, "status", tuple(FilingStatus), FilingStatus.PENDING)
     filed_date = form.get("filed_date", "").strip()
     if filed_date:
         try:

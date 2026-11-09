@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List
 
+from .codes import Kind
 from .calc import Entry, quarter_of
 
 RENT_CATEGORY_CODES = ("rent", "office_rent")  # expenses whose retention is declared in modelo 115
@@ -35,7 +36,7 @@ def build_115_year(entries: List[Entry], year: int) -> List[Rent115]:
     quarters = [Rent115(year, q) for q in (1, 2, 3, 4)]
     recipients: List[set] = [set() for _ in quarters]
     for e in entries:
-        if e.date.year != year or e.kind != "expense" or e.withholding_cents <= 0:
+        if e.date.year != year or e.kind != Kind.EXPENSE or e.withholding_cents <= 0:
             continue
         r = quarters[quarter_of(e.date) - 1]
         if e.category_code not in RENT_CATEGORY_CODES:

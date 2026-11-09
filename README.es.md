@@ -163,7 +163,7 @@ Español, inglés, ruso. El idioma se elige en la cabecera o en **Ajustes → Id
 
 ## Desarrollo
 
-Instale los paquetes con `pip install -r requirements-dev.txt` y ejecute los tests con `pytest`; usan su propia carpeta de datos vacía. La aplicación es el paquete `taxhelper`: `calc.py` contiene las reglas fiscales, `aeat/` los ficheros de la AEAT y el envío, `web/` las vistas y formularios de Flask; todos los textos de la interfaz están en `locales/`. Se agradecen informes de errores y pull requests.
+Instale los paquetes con `pip install -r requirements-dev.txt` y ejecute los tests con `pytest` y la comprobación de tipos con `mypy`; los tests usan su propia carpeta de datos vacía. La aplicación es el paquete `taxhelper`: `calc.py` contiene las reglas fiscales, `aeat/` los ficheros de la AEAT y el envío, `web/` las vistas y formularios de Flask; todos los textos de la interfaz están en `locales/`. Se agradecen informes de errores y pull requests.
 
 ## Apoyar al autor
 

@@ -12,14 +12,17 @@ import sqlite3
 from dataclasses import dataclass, fields, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar
 
+from .codes import FxMode, HomeRule, IrpfMethod, Kind, PaymentMethod, Regime, VatHomeMode, VatNegative
 from . import calc, dates, deadlines, renta
 
-PAYMENT_METHODS = ("nrc", "domiciliacion")
-VAT_HOME_MODES = ("share", "share_factor", "none")
-VAT_NEGATIVE_MODES = ("compensate", "refund")  # what a negative IVA result of the 4th quarter asks for
-FX_MODES = ("auto", "manual")
+_T = TypeVar("_T", bound=str)
+
+PAYMENT_METHODS = tuple(PaymentMethod)
+VAT_HOME_MODES = tuple(VatHomeMode)
+VAT_NEGATIVE_MODES = tuple(VatNegative)
+FX_MODES = tuple(FxMode)
 # AEAT key of the activity in the books: A (in the IAE) or B (not in the IAE) plus a two-digit type, or C / D
 ACTIVITY_CODES = ("A01", "A02", "A03", "A04", "A05", "B01", "B02", "B03", "B04", "B05", "B06", "C", "D")
 
@@ -33,10 +36,10 @@ class Settings:
     holder_surname: str = ""
     holder_firstname: str = ""
     holder_iban: str = ""
-    payment_method: str = "nrc"
+    payment_method: PaymentMethod = PaymentMethod.NRC
     aeat_certificate: str = ""  # thumbprint of the Windows-store certificate used to sign submissions
     # tax profile
-    irpf_method: str = "simplificada"
+    irpf_method: IrpfMethod = IrpfMethod.SIMPLIFICADA
     irpf_rate_pct: Decimal = Decimal(20)
     vat_registered: bool = True
     tracked_models: Tuple[str, ...] = deadlines.DEFAULT_MODELS
@@ -47,15 +50,15 @@ class Settings:
     # defaults for new entries
     default_vat_rate: Decimal = Decimal(21)
     default_withholding_rate: Decimal = Decimal(0)
-    fx_mode: str = "auto"
+    fx_mode: FxMode = FxMode.AUTO
     # home office: what modelo 036 declares - surface of the home (informational) and the percentage affected
     home_total_m2: Decimal = Decimal(0)
     home_affected_pct: Decimal = Decimal(0)
     supplies_factor: Decimal = Decimal("0.30")  # a fraction
-    supplies_rule: str = "share_factor"  # IRPF rule for electricity, gas, water, internet
-    property_rule: str = "share"  # IRPF rule for rent, IBI, community fees, home insurance
-    vat_home_mode: str = "share"
-    vat_negative_4t: str = "compensate"  # "refund" asks the AEAT to pay a negative 4T result into the IBAN
+    supplies_rule: HomeRule = HomeRule.SHARE_FACTOR  # IRPF rule for electricity, gas, water, internet
+    property_rule: HomeRule = HomeRule.SHARE  # IRPF rule for rent, IBI, community fees, home insurance
+    vat_home_mode: VatHomeMode = VatHomeMode.SHARE
+    vat_negative_4t: VatNegative = VatNegative.COMPENSATE  # REFUND asks the AEAT to pay a negative 4T result into the IBAN
     # IRPF details
     difficult_enabled: bool = True
     difficult_pct: Decimal = Decimal("0.05")  # a fraction
@@ -99,17 +102,17 @@ class Settings:
         first = self.start_reduction_year or (self.activity_start.year if self.activity_start else 0)
         return (first, first + 1) if self.start_reduction and first else ()
 
-    def default_regime(self, kind: str) -> str:
+    def default_regime(self, kind: Kind) -> Regime:
         """The IVA treatment a new entry of this kind starts with: the general regime for an IVA taxpayer."""
-        return "domestic" if self.vat_registered else ("exempt" if kind == "income" else "no_vat")
+        return Regime.DOMESTIC if self.vat_registered else (Regime.EXEMPT if kind == Kind.INCOME else Regime.NO_VAT)
 
     @property
     def uses_direct_debit(self) -> bool:
-        return self.payment_method == "domiciliacion"
+        return self.payment_method == PaymentMethod.DOMICILIACION
 
     @property
     def auto_fx(self) -> bool:
-        return self.fx_mode == "auto"
+        return self.fx_mode == FxMode.AUTO
 
 
 # ----------------------------------------------------------------- text <-> typed
@@ -159,8 +162,9 @@ def _money_or(text: str, default: int) -> int:
     return default if value is None else value
 
 
-def _choice(value: str, allowed, default: str) -> str:
-    return value if value in allowed else default
+def _choice(value: str, allowed: Iterable[_T], default: _T) -> _T:
+    """The member of `allowed` that equals the stored text, otherwise the default."""
+    return next((member for member in allowed if member == value), default)
 
 
 def _home_pct(raw: Dict[str, str], default: Decimal) -> Decimal:
@@ -298,14 +302,13 @@ class SettingsRepository:
             self.set_raw(key, value)
         self.con.commit()
 
-    def update(self, **changes) -> Settings:
+    def update(self, **changes: Any) -> Settings:
         """Change some fields and persist (e.g. update(language='es'))."""
         unknown = set(changes) - {f.name for f in fields(Settings)}
         if unknown:
             raise TypeError(f"unknown settings: {sorted(unknown)}")
-        updated = replace(self.load(), **changes)
-        self.save(updated)
-        return updated
+        self.save(replace(self.load(), **changes))
+        return self.load()  # decoded again, so codes typed as text come back as members and unknown ones as defaults
 
     # IVA balance carried into a year is a per-year value, kept outside the typed settings
     def carry_in(self, year: int) -> int:

@@ -12,8 +12,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 
+from .codes import DeductionMode, FilingStatus, Kind, Regime
 from . import calc, deadlines, i18n
 from .fx import Rate
+
+
+def _new_id(cursor: sqlite3.Cursor) -> int:
+    """The id of the row that an INSERT just created."""
+    if cursor.lastrowid is None:
+        raise RuntimeError("the INSERT created no row")
+    return cursor.lastrowid
 
 # ----------------------------------------------------------------- categories
 
@@ -86,7 +94,7 @@ class ContactRepository:
 
     def all(self, kind: Optional[str] = None) -> List[sqlite3.Row]:
         """Contacts by name, optionally only the clients or only the suppliers."""
-        if kind in ("income", "expense"):
+        if kind in tuple(Kind):
             return self.con.execute("SELECT * FROM contacts WHERE kind = ? ORDER BY name", (kind,)).fetchall()
         return self.con.execute("SELECT * FROM contacts ORDER BY kind DESC, name").fetchall()
 
@@ -106,7 +114,7 @@ class ContactRepository:
             f"INSERT INTO contacts ({','.join(CONTACT_COLUMNS)}) VALUES ({','.join('?' * len(CONTACT_COLUMNS))})",
             [values[c] for c in CONTACT_COLUMNS])
         self.con.commit()
-        return cur.lastrowid
+        return _new_id(cur)
 
     def update(self, contact_id: int, values: dict) -> None:
         """Raises sqlite3.IntegrityError if the new name is taken by another contact of the same kind."""
@@ -123,11 +131,11 @@ class ContactRepository:
         name = " ".join((entry.get("counterparty") or "").split())
         if not name:
             return False
-        income = entry["kind"] == "income"
+        income = entry["kind"] == Kind.INCOME
         cur = self.con.execute(  # OR IGNORE: a contact of that name may exist already (or appear from a double submit)
             f"INSERT OR IGNORE INTO contacts ({','.join(CONTACT_COLUMNS)}) VALUES ({','.join('?' * len(CONTACT_COLUMNS))})",
             [entry["kind"], name, entry.get("country") or "ES", entry.get("vat_id") or "", "", "", entry["regime"],
-             entry.get("category_id"), entry["vat_rate"] if entry["regime"] == "domestic" else "",
+             entry.get("category_id"), entry["vat_rate"] if entry["regime"] == Regime.DOMESTIC else "",
              entry["withholding_rate"] if income or entry["withholding_rate"] not in ("", "0") else "", "", ""])
         if commit:
             self.con.commit()
@@ -157,13 +165,15 @@ class SubmissionRepository:
     def __init__(self, con: sqlite3.Connection):
         self.con = con
 
-    def add(self, **values) -> sqlite3.Row:
+    def add(self, **values: object) -> sqlite3.Row:
         """Store one outcome and return the row."""
         cur = self.con.execute(
             f"INSERT INTO submissions ({','.join(SUBMISSION_COLUMNS)}) VALUES ({','.join('?' * len(SUBMISSION_COLUMNS))})",
             [values[c] for c in SUBMISSION_COLUMNS])
         self.con.commit()
-        return self.get(cur.lastrowid)
+        row = self.get(_new_id(cur))
+        assert row is not None  # it was committed one line above
+        return row
 
     def get(self, submission_id: int) -> Optional[sqlite3.Row]:
         return self.con.execute("SELECT * FROM submissions WHERE id = ?", (submission_id,)).fetchone()
@@ -194,13 +204,17 @@ class EntryRepository:
 
     @staticmethod
     def to_entry(r: sqlite3.Row) -> calc.Entry:
-        """The calculation model of a joined row."""
+        """The calculation model of a joined row. Raises ValueError, naming the entry, for a code the app does not know."""
         label = CategoryRepository.label(r["category_code"], r["category_name"]) if r["category_name"] else ""
+        try:
+            kind, regime = Kind(r["kind"]), Regime(r["regime"])
+            irpf_mode, vat_mode = (DeductionMode(r[column] or DeductionMode.FULL) for column in ("irpf_mode", "vat_mode"))
+        except ValueError as exc:
+            raise ValueError(f"entry {r['id']} of {r['date']}: {exc}") from exc
         return calc.Entry(
-            kind=r["kind"], date=date.fromisoformat(r["date"]), regime=r["regime"],
+            kind=kind, date=date.fromisoformat(r["date"]), regime=regime,
             base_cents=r["base_cents"], vat_rate=Decimal(r["vat_rate"] or "0"), vat_cents=r["vat_cents"],
-            withholding_cents=r["withholding_cents"],
-            irpf_mode=r["irpf_mode"] or "full", vat_mode=r["vat_mode"] or "full",
+            withholding_cents=r["withholding_cents"], irpf_mode=irpf_mode, vat_mode=vat_mode,
             category=label, description=r["description"] or r["counterparty"] or "",
             category_cap_cents=r["category_cap"], category_code=r["category_code"] or "",
             counterparty=r["counterparty"] or "", vat_id=r["vat_id"] or "")
@@ -231,7 +245,7 @@ class EntryRepository:
         cur = self.con.execute(f"INSERT INTO entries ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})",
                                [values[c] for c in ENTRY_COLUMNS] + [document])
         self.con.commit()
-        return cur.lastrowid
+        return _new_id(cur)
 
     def insert_many(self, rows: List[dict]) -> int:
         """Store several entries in one transaction (all or none); returns how many were stored."""
@@ -258,6 +272,8 @@ class EntryRepository:
     def copy_dated(self, entry_id: int, on: date) -> int:
         """A copy of an entry without its invoice number or document, dated `on` (monthly subscriptions)."""
         row = self.get(entry_id)
+        if row is None:
+            raise LookupError(f"no entry {entry_id}")
         values = {c: row[c] for c in ENTRY_COLUMNS}
         values.update(date=on.isoformat(), number="")
         return self.insert(values)
@@ -291,7 +307,7 @@ class FilingRepository:
     def filed_results(self, year: int, model: str) -> Dict[int, int]:
         """{quarter: result in cents} of the quarterly filings of a model that are filed and have a result."""
         return {int(f["period"][0]): f["result_cents"] for f in self.for_year_model(year, model)
-                if f["status"] == "filed" and f["result_cents"] is not None and f["period"][:1].isdigit()}
+                if f["status"] == FilingStatus.FILED and f["result_cents"] is not None and f["period"][:1].isdigit()}
 
     def default_rows(self, year: int) -> List[sqlite3.Row]:
         """Rows of the models the tracker creates by itself."""

@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from typing import FrozenSet, Iterable, List, Optional
 
 from .calc import quarter_end
+from .codes import FilingStatus
 from .dates import parse_date
 
 # Models the tracker can create automatically: model -> kind.
@@ -102,7 +103,7 @@ def parse_holidays(text: str) -> List[date]:
 
 def period_quarter(period: Optional[str]) -> Optional[int]:
     """1..4 for a quarterly period such as '2T'; None for 'ANUAL' and any custom text ('5T', '0T', …)."""
-    return int(period[0]) if re.fullmatch(r"[1-4]T", period or "") else None
+    return int(period[0]) if period and re.fullmatch(r"[1-4]T", period) else None
 
 
 def display_status(status: str, opens: date, due: date, today: date) -> str:
@@ -111,7 +112,7 @@ def display_status(status: str, opens: date, due: date, today: date) -> str:
     Stored status is 'pending' | 'filed' | 'not_required'. Derived for pending:
     'waiting' (period not finished), 'open', 'due_soon', 'overdue'.
     """
-    if status in ("filed", "not_required"):
+    if status in (FilingStatus.FILED, FilingStatus.NOT_REQUIRED):
         return status
     if today > due:
         return "overdue"

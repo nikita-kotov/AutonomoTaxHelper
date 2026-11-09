@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from ..codes import VatNegative
 from .. import db
 from ..reports import TaxReports
 from ..repositories import CheckRepository
@@ -49,19 +50,19 @@ def build_file(settings: Settings, reports: TaxReports, model: str, year: int, q
     if iban and not is_valid_iban(iban):
         raise UserError("err.iban_invalid")  # the AEAT refuses a malformed IBAN (error 2917)
     if model == "130":
-        rep = reports.irpf_year(year, quarter)[-1]
-        tipo = model130.declaration_type(rep, iban)
-        text, result = model130.build(rep, tp, tipo, iban), rep.c19
+        irpf = reports.irpf_year(year, quarter)[-1]
+        tipo = model130.declaration_type(irpf, iban)
+        text, result = model130.build(irpf, tp, tipo, iban), irpf.c19
     else:
-        rep = reports.vat_year(year, quarter)[-1]
-        refund = settings.vat_negative_4t == "refund" and quarter == 4 and rep.c71 < 0
+        vat = reports.vat_year(year, quarter)[-1]
+        refund = settings.vat_negative_4t == VatNegative.REFUND and quarter == 4 and vat.c71 < 0
         if refund and not account:
             raise UserError("err.iban_refund")
         if refund and not is_valid_iban(account):
             raise UserError("err.iban_invalid")
-        tipo = model303.declaration_type(rep, iban, account if refund else "")
+        tipo = model303.declaration_type(vat, iban, account if refund else "")
         iban = account if tipo == "D" else iban
-        text, result = model303.build(rep, tp, tipo, iban), rep.c71
+        text, result = model303.build(vat, tp, tipo, iban), vat.c71
     period = f"{quarter}T"
     return BuiltFile(model=model, year=year, quarter=quarter, period=period, text=text, tipo=tipo,
                      sha256=hashlib.sha256(text.encode("latin-1", "replace")).hexdigest(),

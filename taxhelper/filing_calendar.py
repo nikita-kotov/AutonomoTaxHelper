@@ -2,9 +2,11 @@
 in step when settings change, and describe each filing's status."""
 from __future__ import annotations
 
+import sqlite3
 from datetime import date
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
+from .codes import FilingStatus
 from . import deadlines
 from .repositories import FilingRepository
 from .settings import Settings, SettingsRepository
@@ -61,19 +63,19 @@ class FilingCalendar:
         self.filings.commit()
 
     @staticmethod
-    def _is_pristine(row) -> bool:
+    def _is_pristine(row: sqlite3.Row) -> bool:
         """A pending filing nobody has touched: safe to drop when the profile no longer needs it."""
-        return (row["status"] == "pending" and not row["due_manual"] and not row["filed_date"]
+        return (row["status"] == FilingStatus.PENDING and not row["due_manual"] and not row["filed_date"]
                 and not row["reference"] and not row["notes"] and not row["document"]
                 and row["result_cents"] is None)
 
-    def delete(self, row) -> None:
+    def delete(self, row: sqlite3.Row) -> None:
         """Delete a filing and remember it, so the standard calendar does not create it again."""
         self.filings.skip(row["year"], row["model"], row["period"])
         self.filings.delete(row["id"])
         self.filings.commit()
 
-    def restore_deleted(self, today: date = None) -> None:
+    def restore_deleted(self, today: Optional[date] = None) -> None:
         """Bring back standard filings that were deleted by hand (the profile decides which exist)."""
         today = today or date.today()
         self.filings.clear_skips()
@@ -88,12 +90,12 @@ class FilingCalendar:
     def mark(self, filing_id: int, action: str) -> bool:
         """Set a filing to 'filed', 'not_required' or back to 'pending'. False for an unknown action."""
         row = self.filings.get(filing_id)
-        if row is None or action not in ("filed", "not_required", "pending"):
+        if row is None or action not in tuple(FilingStatus):
             return False
         filed_date = ""
-        if action == "filed":
+        if action == FilingStatus.FILED:
             filed_date = row["filed_date"] or date.today().isoformat()
-        elif action == "not_required":
+        elif action == FilingStatus.NOT_REQUIRED:
             filed_date = row["filed_date"]
         self.filings.set_status(filing_id, action, filed_date)
         self.filings.commit()
@@ -106,7 +108,7 @@ class FilingCalendar:
 
     # ------------------------------------------------------------- queries
 
-    def rows(self, pending_only: bool = False, today: date = None) -> List[dict]:
+    def rows(self, pending_only: bool = False, today: Optional[date] = None) -> List[dict]:
         """Filings as dicts with the derived UI fields: quarter, display status, days left."""
         today = today or date.today()
         out = []

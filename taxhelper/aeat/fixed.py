@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
+from typing import List
 
 from ..i18n import UserError
 
@@ -92,7 +93,7 @@ class Record:
     def __init__(self, expected_length: int, name: str):
         self.expected = expected_length
         self.name = name
-        self.parts = []
+        self.parts: List[str] = []
 
     def add(self, text: str) -> "Record":
         self.parts.append(text)

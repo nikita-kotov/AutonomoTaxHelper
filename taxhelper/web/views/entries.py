@@ -11,6 +11,7 @@ from decimal import Decimal
 from flask import (Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file,
                    url_for)
 
+from ...codes import DeductionMode, Kind, Regime
 from ... import calc, fx, i18n
 from ...fx import FxError
 from ...i18n import UserError, t
@@ -43,7 +44,7 @@ def ledger_rows(year, quarter=None, kind=None, text=None):
     needle = (text or "").casefold()
     rows = []
     for r, e, irpf_ded in zip(sql_rows, entries, calc.irpf_deductions(entries, tax)):
-        if kind in ("income", "expense") and r["kind"] != kind:
+        if kind in tuple(Kind) and r["kind"] != kind:
             continue
         if quarter and calc.quarter_of(e.date) != quarter:
             continue
@@ -63,8 +64,8 @@ def index():
     text = (request.args.get("text") or "").strip() or None
     rows = ledger_rows(year, quarter, kind, text)
     totals = {
-        "income": sum(x["r"]["base_cents"] for x in rows if x["r"]["kind"] == "income"),
-        "expense": sum(x["r"]["base_cents"] for x in rows if x["r"]["kind"] == "expense"),
+        "income": sum(x["r"]["base_cents"] for x in rows if x["r"]["kind"] == Kind.INCOME),
+        "expense": sum(x["r"]["base_cents"] for x in rows if x["r"]["kind"] == Kind.EXPENSE),
         "irpf_ded": sum(x["irpf_ded"] for x in rows),
         "vat_ded": sum(x["vat_ded"] for x in rows),
     }
@@ -118,7 +119,7 @@ def form_context(kind):
         "js_texts": {k: t(k) for k in JS_TEXT_KEYS},
         "defaults": {"date": date.today().isoformat(), "country": "ES", "currency": "EUR", "regime": regime,
                      "vat_rate": default_rate,
-                     "withholding_rate": calc.fmt_percent(settings.default_withholding_rate) if kind == "income" else "0"}}
+                     "withholding_rate": calc.fmt_percent(settings.default_withholding_rate) if kind == Kind.INCOME else "0"}}
 
 
 def save_posted_entry(kind, row=None):
@@ -128,7 +129,7 @@ def save_posted_entry(kind, row=None):
     """
     s = svc()
     result = parse_entry(request.form, kind)
-    if not result.errors and kind == "expense" and s.categories.get(result.values["category_id"]) is None:
+    if not result.errors and kind == Kind.EXPENSE and s.categories.get(result.values["category_id"]) is None:
         result.errors.append(t("err.category"))  # e.g. the category was deleted in another tab
     new_doc = ""
     if not result.errors:
@@ -166,7 +167,7 @@ def save_posted_entry(kind, row=None):
 
 @bp.route("/entries/new/<kind>", methods=["GET", "POST"])
 def new(kind):
-    if kind not in ("income", "expense"):
+    if kind not in tuple(Kind):
         abort(404)
     ctx = form_context(kind)
     if request.method == "POST":
@@ -192,7 +193,7 @@ def edit(entry_id):
     e = dict(row)
     e["base"] = f"{row['base_cents'] / 100:.2f}"
     # an explicit 0.00 of a domestic invoice is a value, not "empty": show it so saving keeps it
-    e["vat_amount"] = f"{row['vat_cents'] / 100:.2f}" if (row["vat_cents"] or row["regime"] == "domestic") else ""
+    e["vat_amount"] = f"{row['vat_cents'] / 100:.2f}" if (row["vat_cents"] or row["regime"] == Regime.DOMESTIC) else ""
     e["orig_amount"] = f"{row['orig_amount_cents'] / 100:.2f}" if row["orig_amount_cents"] is not None else ""
     return render_template("entry_form.html", e=e, kind=row["kind"], entry_id=entry_id, doc=row["document"], **ctx)
 
@@ -233,7 +234,7 @@ def preview():
     vat_manual, base_manual = bool(payload.get("vat_manual")), bool(payload.get("base_manual"))
     data = {k: "" if v is None else str(v) for k, v in payload.items()}
     kind, regime = data.get("kind", "expense"), data.get("regime", "domestic")
-    if kind not in ("income", "expense") or regime not in (calc.INCOME_REGIMES if kind == "income" else calc.EXPENSE_REGIMES):
+    if kind not in tuple(Kind) or regime not in (calc.INCOME_REGIMES if kind == Kind.INCOME else calc.EXPENSE_REGIMES):
         return jsonify({"ok": False})
     currency = (data.get("currency") or fx.EUR).strip().upper()
 
@@ -265,8 +266,8 @@ def preview():
     vat = calc.compute_vat(regime, base, rate, entered)
     withholding = calc.round_cents(Decimal(base) * withholding_rate / 100)
 
-    irpf_mode, vat_mode = "full", "full"
-    if kind == "expense" and data.get("category_id", "").isdigit():
+    irpf_mode, vat_mode = DeductionMode.FULL, DeductionMode.FULL
+    if kind == Kind.EXPENSE and data.get("category_id", "").isdigit():
         category = s.categories.get(int(data["category_id"]))
         if category:
             irpf_mode, vat_mode = category["irpf_mode"], category["vat_mode"]
@@ -280,7 +281,7 @@ def preview():
     money = i18n.format_money
     out = {"ok": True, "vat_cents": vat, "vat": money(vat), "withholding": money(withholding),
            "quarter": calc.quarter_of(on), "reverse": regime in calc.REVERSE_REGIMES, "base_text": base_text}
-    if kind == "expense":
+    if kind == Kind.EXPENSE:
         out.update(vat_ded=money(calc.vat_deductible(entry, tax)), irpf_ded=money(calc.irpf_deductible(entry, tax)),
                    total=money(base + (0 if regime in calc.REVERSE_REGIMES else vat) - withholding))
         if irpf_mode.startswith("home") and tax.affected_share == 0:
