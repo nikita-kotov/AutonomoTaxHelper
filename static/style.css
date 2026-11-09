@@ -63,6 +63,7 @@ tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
 .btn.small, button.small { padding: .15rem .5rem; font-size: .8rem; }
 form.inline { display: inline; }
 label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
+[hidden] { display: none !important; }  /* the scripts hide fields with the hidden attribute; `label { display: block }` would win otherwise */
 input, select, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: .4rem .5rem; width: 100%; margin-top: .15rem; }
 input[type=checkbox] { width: auto; margin-right: .4rem; }

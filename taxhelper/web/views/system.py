@@ -10,6 +10,7 @@ from flask import (Blueprint, abort, current_app, flash, redirect, render_templa
 
 from ... import backup as bk
 from ... import db, i18n, launcher
+from ...icon import make_icon
 from ...i18n import t
 from ..helpers import safe_next
 from ..infra import svc
@@ -28,6 +29,15 @@ def document(name):
     response = send_from_directory(db.documents_dir(), name, as_attachment=not inline)
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@bp.get("/favicon.ico")
+def favicon():
+    """The application icon (the one of the tray) for the browser tab."""
+    buf = io.BytesIO()
+    make_icon(32).save(buf, "PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png", max_age=86400)
 
 
 @bp.post("/quit")

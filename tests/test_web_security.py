@@ -35,3 +35,15 @@ def test_the_secret_key_is_random_per_data_folder_and_stable_across_restarts(tmp
     assert first == create_app().secret_key and len(first) == 64 and first != "local-only-app"
     monkeypatch.setenv("TAXHELPER_DATA", str(tmp_path / "b"))
     assert create_app().secret_key != first
+
+
+def test_the_browser_tab_gets_the_application_icon(client):
+    response = client.get("/favicon.ico")
+    assert response.status_code == 200 and response.mimetype == "image/png"
+    assert response.data.startswith(b"\x89PNG")
+
+
+def test_the_hidden_attribute_beats_the_label_display_rule(client):
+    """The entry form hides fields with `hidden`; without this rule `label { display: block }` keeps them on screen."""
+    css = client.get("/static/style.css").get_data(as_text=True)
+    assert "[hidden] { display: none !important; }" in css
