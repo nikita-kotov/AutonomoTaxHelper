@@ -1,3 +1,4 @@
+import io
 import os
 import sqlite3
 import threading
@@ -8,9 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from support import set_settings
+from support import expense_form, set_settings, text
 from taxhelper import backup as bk, db
 from taxhelper.settings import SettingsRepository
+from taxhelper.web import create_app
 
 
 @pytest.fixture()
@@ -230,3 +232,39 @@ def test_concurrent_backups_do_not_corrupt_each_other(backup_env):
     [th.join() for th in threads]
     assert "ok" in results and set(results) <= {"ok", "skipped"}
     assert len(bk.list_backups(cloud)) == 1 and not list(cloud.glob("*.partial"))
+
+
+def test_a_downloaded_backup_restores_into_a_clean_installation(client, fresh_app, tmp_path, monkeypatch, rates):
+    """The whole path of the README: two entries and a PDF, download the zip, unpack it into an empty data folder
+    as described under "Restore", start the app there and compare what the user sees."""
+    pdf = b"%PDF-1.4 fictional invoice\n" + bytes(range(256))
+    client.post("/entries/new/income", data={
+        "date": "2026-02-01", "number": "A-1", "counterparty": "Cliente S.L.", "regime": "domestic", "base": "1000",
+        "vat_rate": "21", "currency": "EUR"})
+    client.post("/entries/new/expense", data={
+        **expense_form(base="123.45", counterparty="Proveedor"), "number": "F-7", "document": (io.BytesIO(pdf), "factura.pdf")},
+        content_type="multipart/form-data")
+
+    def snapshot(c):
+        return {url: text(c.get(url)) for url in ("/entries?year=2026", "/export/entries.csv?year=2026", "/?year=2026")}
+
+    client.get("/entries")  # shows and clears the "Entry added." messages, which belong to the session, not to the data
+    before = snapshot(client)
+    document = db.connect().execute("SELECT document FROM entries WHERE document != ''").fetchone()[0]
+    archive = client.get("/backup").data
+
+    clean = tmp_path / "clean-installation"
+    monkeypatch.setenv("TAXHELPER_DATA", str(clean))
+    with zipfile.ZipFile(io.BytesIO(archive)) as z:
+        z.extract("taxhelper.db", clean)
+        for name in z.namelist():
+            if name.startswith("documents/"):
+                z.extract(name, clean)
+    restored_app = create_app(fx_provider=rates)
+    restored_app.config["TESTING"] = True
+    restored = restored_app.test_client()
+
+    assert snapshot(restored) == before
+    page = text(restored.get("/entries?year=2026"))
+    assert all(word in page for word in ("Cliente S.L.", "A-1", "1,000.00", "Proveedor", "F-7", "123.45"))
+    assert restored.get("/documents/" + document).data == pdf
