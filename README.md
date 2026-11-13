@@ -47,7 +47,7 @@ The server listens on `127.0.0.1` only and your data stays on your computer. The
 
 ## Install and start
 
-**Requirements.** Python 3.12. `run.bat` (Windows) and `run.sh` (macOS, Linux) create the virtual environment and install the packages on the first start. Signing declarations with a certificate (the Submission page) works on Windows only.
+**Requirements.** Python 3.11 or newer (tested on 3.11, 3.12, 3.14 and 3.15). `run.bat` (Windows) and `run.sh` (macOS, Linux) create the virtual environment and install the packages on the first start. Signing declarations with a certificate (the Submission page) works on Windows only.
 
 Double-click `run.bat`: the app starts in the background with an icon in the system tray (no console window) and opens in your browser at <http://127.0.0.1:5057/>. Double-click the icon to open the page again; its right-click menu also opens the data folder and stops the app. **Exit** in the page's top bar stops it too. If the app is already running, `run.bat` just opens the page. Start-up problems are written to `app.log` in the data folder.
 

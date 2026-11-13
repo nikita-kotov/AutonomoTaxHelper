@@ -5,7 +5,7 @@ rem Data location: see README, section "Data and privacy". Start-up problems are
 cd /d "%~dp0"
 if not exist ".venv\Scripts\python.exe" (
   echo Creating virtual environment...
-  "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" -m venv .venv || python -m venv .venv
+  py -3 -m venv .venv 2>nul || python -m venv .venv
 )
 ".venv\Scripts\python.exe" -c "import flask, pystray, PIL" 2>nul || (
   echo Installing requirements...
