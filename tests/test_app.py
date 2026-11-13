@@ -168,6 +168,9 @@ def test_invalid_expense_rejected(client):
 
 
 def test_filings_tracker(client):
+    from datetime import date
+    from support import set_settings
+    set_settings(activity_start=date(2026, 1, 1))
     page = client.get("/filings").get_data(as_text=True)
     assert "Renta (IRPF anual)" in page and "IVA (autoliquidación trimestral)" in page
     from taxhelper import db
@@ -205,6 +208,9 @@ def test_bulk_mark_filed(client):
 
 
 def test_overdue_shown_on_dashboard(client):
+    from datetime import date
+    from support import set_settings
+    set_settings(activity_start=date(2019, 1, 1))
     page = client.get("/?year=2020").get_data(as_text=True)  # the dashboard creates that year's calendar itself
     assert "Просрочена отчётность" in page
 

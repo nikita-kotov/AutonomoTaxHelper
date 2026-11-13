@@ -16,6 +16,12 @@ def set_settings(**changes):
         con.close()
 
 
+def calendar_from_last_year():
+    """An activity start at the beginning of last year: the filings calendar then holds last year and this one
+    (a new installation has no past periods to file)."""
+    set_settings(activity_start=date(date.today().year - 1, 1, 1))
+
+
 def load_settings():
     con = db.connect()
     try:

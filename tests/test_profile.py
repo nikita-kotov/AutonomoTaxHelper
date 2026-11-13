@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from support import category_id, load_settings
+from support import calendar_from_last_year, category_id, load_settings
 
 from taxhelper import calc, db, deadlines
 from taxhelper.calc import Entry, TaxSettings
@@ -199,7 +199,8 @@ def form(**over):
             "supplies_factor_pct": "30", "difficult_pct_pct": "5", "difficult_cap_eur": "2000",
             "difficult_enabled": "1", "irpf_method": "simplificada", "irpf_rate_pct": "20",
             "default_vat_rate": "21", "default_withholding_rate": "0", "payment_method": "nrc",
-            "tracked_models": ["303", "130", "390", "100"], "extra_holidays": ""}
+            "tracked_models": ["303", "130", "390", "100"], "extra_holidays": "",
+            "activity_start": f"{date.today().year - 1}-01-01"}
     base.update(over)
     return base
 
@@ -239,6 +240,7 @@ def test_invalid_profile_values_are_rejected(client):
 
 
 def test_stopping_to_track_a_model_removes_untouched_rows_only(client):
+    calendar_from_last_year()
     client.get("/filings")
     year = date.today().year
     assert (year, "303", "1T") in filings()
@@ -265,6 +267,7 @@ def test_not_registered_for_vat_drops_vat_filings_and_changes_form_defaults(clie
 
 
 def test_direct_debit_recomputes_pending_deadlines_but_not_hand_edited_ones(client):
+    calendar_from_last_year()
     client.get("/filings")
     year = date.today().year
     con = db.connect()
@@ -282,6 +285,7 @@ def test_direct_debit_recomputes_pending_deadlines_but_not_hand_edited_ones(clie
 
 
 def test_activity_start_prunes_earlier_untouched_filings_and_validates(client):
+    calendar_from_last_year()
     client.get("/filings")
     year = date.today().year
     assert (year - 1, "303", "1T") in filings()
@@ -294,6 +298,7 @@ def test_activity_start_prunes_earlier_untouched_filings_and_validates(client):
 
 
 def test_extra_holidays_shift_default_deadlines(client):
+    calendar_from_last_year()
     client.get("/filings")
     year = date.today().year
     plain = filings()[(year, "303", "3T")]["due_date"]

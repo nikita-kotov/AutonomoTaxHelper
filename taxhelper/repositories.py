@@ -278,6 +278,11 @@ class EntryRepository:
         values.update(date=on.isoformat(), number="")
         return self.insert(values)
 
+    def first_date(self) -> Optional[date]:
+        """The date of the earliest entry, or None when there are none."""
+        value = self.con.execute("SELECT MIN(date) FROM entries").fetchone()[0]
+        return date.fromisoformat(value) if value else None
+
     def years_in_use(self) -> List[int]:
         rows = self.con.execute("SELECT DISTINCT substr(date,1,4) AS y FROM entries ORDER BY y").fetchall()
         return sorted({int(r["y"]) for r in rows} | {date.today().year}, reverse=True)

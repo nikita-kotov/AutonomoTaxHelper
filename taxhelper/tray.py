@@ -114,9 +114,8 @@ def run(app: Flask, host: str = launcher.HOST, port: int = launcher.PORT, pystra
     pystray = pystray_module or load_pystray()
     if pystray is None:
         return launcher.run(app, host, port, open_browser, log)
-    url = f"http://{host}:{port}/"
     if launcher.already_running(host, port):
-        open_browser(url)
+        open_browser(launcher.start_url(app, host, port))
         return 0
     server = launcher.bind(app, host, port, log)
     if server is None:
@@ -129,7 +128,7 @@ def run(app: Flask, host: str = launcher.HOST, port: int = launcher.PORT, pystra
     icon = pystray.Icon(
         "AutonomoTaxHelper", make_icon(64), TITLE,
         pystray.Menu(
-            pystray.MenuItem(i18n.t("tray.open"), lambda *_: open_browser(url), default=True),
+            pystray.MenuItem(i18n.t("tray.open"), lambda *_: open_browser(launcher.start_url(app, host, port)), default=True),
             pystray.MenuItem(i18n.t("tray.folder"), lambda *_: open_folder(db.data_dir())),
             pystray.MenuItem(i18n.t("tray.exit"), lambda icon, *_: icon.stop())))
 
@@ -140,7 +139,7 @@ def run(app: Flask, host: str = launcher.HOST, port: int = launcher.PORT, pystra
 
     def ready(icon):
         icon.visible = True
-        open_browser(url)
+        open_browser(launcher.start_url(app, host, port))
     try:
         icon.run(setup=ready)
     finally:

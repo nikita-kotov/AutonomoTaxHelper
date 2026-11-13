@@ -274,6 +274,7 @@
   "filing.confirm_delete": "¿Eliminar el registro de esta presentación?",
 
   "settings.title": "Ajustes",
+  "settings.first_run": "Bienvenido. Rellene sus datos y su perfil fiscal y pulse Guardar: el panel muestra lo que aún falta.",
   "settings.h_language": "Idioma",
   "settings.language": "Idioma de la interfaz",
   "settings.language_auto": "Automático (idioma del navegador)",

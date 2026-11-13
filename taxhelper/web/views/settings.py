@@ -10,7 +10,7 @@ from ...i18n import t
 from ...settings import encode
 from ..forms import parse_settings
 from ..helpers import current_year
-from ..infra import svc
+from ..infra import is_new_installation, svc
 
 bp = Blueprint("settings", __name__)
 
@@ -42,4 +42,5 @@ def page():
     settings = s.settings.load()
     return render_template("settings.html", raw=encode(settings), carry=s.settings.carry_in_text(year),
                            tracked=list(settings.tracked_models), known_models=deadlines.KNOWN_MODELS,
-                           backups=_folder_backups(settings.backup_dir))
+                           backups=_folder_backups(settings.backup_dir),
+                           first_run=is_new_installation(settings, s.entries))

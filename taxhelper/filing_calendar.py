@@ -8,16 +8,17 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from .codes import FilingStatus
 from . import deadlines
-from .repositories import FilingRepository
+from .repositories import EntryRepository, FilingRepository
 from .settings import Settings, SettingsRepository
 
 Key = Tuple[str, str]  # (model, period)
 
 
 class FilingCalendar:
-    def __init__(self, filings: FilingRepository, settings: SettingsRepository):
+    def __init__(self, filings: FilingRepository, settings: SettingsRepository, entries: EntryRepository):
         self.filings = filings
         self.settings = settings
+        self.entries = entries
 
     # ------------------------------------------------------------- what the profile asks for
 
@@ -28,11 +29,16 @@ class FilingCalendar:
             models = [m for m in models if m not in ("303", "390")]
         return models
 
+    def _start(self, s: Settings) -> date:
+        """The day from which filings are expected: the start of the activity; without it the first entry; without
+        any entry today, so that a new installation is not told that periods before its first day are overdue."""
+        return s.activity_start or self.entries.first_date() or date.today()
+
     def _wanted(self, year: int, s: Settings) -> Dict[Key, deadlines.FilingTemplate]:
         """The standard filings the tracker should hold for a year: profile applied, deliberate deletions skipped."""
         skipped = self.filings.skipped(year)
         templates = deadlines.default_filings(year, self.tracked_models(s), s.uses_direct_debit,
-                                              s.extra_holidays, s.activity_start)
+                                              s.extra_holidays, self._start(s))
         return {(t.model, t.period): t for t in templates if (t.model, t.period) not in skipped}
 
     # ------------------------------------------------------------- commands

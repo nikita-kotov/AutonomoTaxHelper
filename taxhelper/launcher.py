@@ -18,6 +18,12 @@ HOST = "127.0.0.1"
 PORT = 5057
 
 
+def start_url(app: Flask, host: str = HOST, port: int = PORT) -> str:
+    """The address the browser is opened at: the app's own start page (see `START_PATH`), else the root."""
+    path = app.config.get("START_PATH")
+    return f"http://{host}:{port}{path() if path else '/'}"
+
+
 def already_running(host: str = HOST, port: int = PORT) -> bool:
     """True when something already accepts connections on host:port (normally another copy of the app).
 
@@ -52,7 +58,7 @@ def run(app: Flask, host: str = HOST, port: int = PORT, open_browser: Optional[C
     `open_browser` (default: the system browser) and `log` can be replaced, which the tests do.
     """
     open_browser = open_browser or webbrowser.open
-    url = f"http://{host}:{port}/"
+    url = start_url(app, host, port)
     if already_running(host, port):
         log(f"Already running at {url} - opening it.")
         open_browser(url)

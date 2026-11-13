@@ -54,7 +54,7 @@ def test_run_opens_the_browser_only_once_the_port_is_bound_and_stops_on_request(
         threading.Timer(0.2, lambda: launcher.request_stop(fresh_app)).start()
 
     code = launcher.run(fresh_app, port=port, open_browser=open_browser, log=logs.append)
-    assert code == 0 and opened == [f"http://127.0.0.1:{port}/"]
+    assert code == 0 and opened == [f"http://127.0.0.1:{port}/settings"]  # a new installation starts at the settings
     assert "SERVER" not in fresh_app.config
     assert not launcher.already_running("127.0.0.1", port)
 
@@ -69,7 +69,7 @@ def test_second_start_only_opens_the_running_copy(fresh_app):
         assert launcher.run(fresh_app, port=port, open_browser=opened.append, log=lambda m: None) == 0
     finally:
         listener.close()
-    assert opened == [f"http://127.0.0.1:{port}/"] and "SERVER" not in fresh_app.config
+    assert opened == [f"http://127.0.0.1:{port}/settings"] and "SERVER" not in fresh_app.config
 
 
 def test_a_busy_port_without_an_app_is_reported_not_crashed(fresh_app, monkeypatch):
@@ -141,7 +141,7 @@ def test_tray_shows_the_icon_opens_the_page_and_exits_from_the_menu(fresh_app):
     assert icon.visible and icon.title == "Autonomo Tax Helper"
     open_item, folder_item, exit_item = icon.menu.items
     assert open_item.default and open_item.text == "Open Autonomo Tax Helper" and exit_item.text == "Exit"
-    assert opened == [f"http://127.0.0.1:{port}/"]
+    assert opened == [f"http://127.0.0.1:{port}/settings"]
     assert "SERVER" not in fresh_app.config and not launcher.already_running("127.0.0.1", port)
 
 
@@ -194,3 +194,25 @@ def test_without_a_saved_language_the_crash_window_follows_the_system(fresh_app,
 def test_the_system_language_is_one_of_ours_or_english():
     from taxhelper import i18n, tray
     assert tray._system_language() in i18n.available()
+
+
+def test_a_new_installation_opens_at_the_settings_and_a_set_up_one_at_the_dashboard(fresh_app):
+    from support import set_settings
+    base = "http://127.0.0.1:5057"
+    assert launcher.start_url(fresh_app) == base + "/settings"
+    assert "Welcome" in fresh_app.test_client().get("/settings").get_data(as_text=True)
+
+    set_settings(holder_nif="00000000T")
+    assert launcher.start_url(fresh_app) == base + "/"
+    assert "Welcome" not in fresh_app.test_client().get("/settings").get_data(as_text=True)
+
+
+def test_an_entry_alone_is_enough_to_start_at_the_dashboard(fresh_app):
+    from support import expense_form
+    fresh_app.test_client().post("/entries/new/expense", data=expense_form())
+    assert launcher.start_url(fresh_app).endswith(":5057/")
+
+
+def test_an_app_without_a_start_page_opens_at_the_root():
+    from flask import Flask
+    assert launcher.start_url(Flask("plain"), port=1234) == "http://127.0.0.1:1234/"

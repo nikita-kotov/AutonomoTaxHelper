@@ -18,7 +18,7 @@ from ..fx import RateProvider, RateService
 from ..repositories import (CategoryRepository, CheckRepository, ContactRepository, EntryRepository,
                             FilingRepository, FxRateCache, SubmissionRepository)
 from ..reports import TaxReports
-from ..settings import ACTIVITY_CODES, SettingsRepository
+from ..settings import ACTIVITY_CODES, Settings, SettingsRepository
 from .helpers import current_year
 
 
@@ -64,7 +64,7 @@ class Services:
 
     @cached_property
     def calendar(self) -> FilingCalendar:
-        return FilingCalendar(self.filings, self.settings)
+        return FilingCalendar(self.filings, self.settings, self.entries)
 
     @cached_property
     def reports(self) -> TaxReports:
@@ -83,6 +83,20 @@ def svc() -> Services:
         g.db = db.connect()
         g.services = Services(g.db, current_app.config["FX_PROVIDER"], current_app.config["AEAT_TRANSPORT"])
     return g.services
+
+
+def is_new_installation(settings: Settings, entries: EntryRepository) -> bool:
+    """True while nothing has been entered: no taxpayer NIF, no activity start and no entry."""
+    return not settings.holder_nif and settings.activity_start is None and entries.first_date() is None
+
+
+def start_path() -> str:
+    """The page the browser opens at start-up: the settings on a new installation, otherwise the dashboard."""
+    con = db.connect()
+    try:
+        return "/settings" if is_new_installation(SettingsRepository(con).load(), EntryRepository(con)) else "/"
+    finally:
+        con.close()
 
 
 def init_app(app: Flask) -> None:

@@ -38,6 +38,7 @@ def create_app(fx_provider: Optional[RateProvider] = None, aeat_transport: Optio
     app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
     app.config["FX_PROVIDER"] = fx_provider or FrankfurterProvider()
     app.config["AEAT_TRANSPORT"] = aeat_transport or WindowsStoreTransport()
+    app.config["START_PATH"] = infra.start_path  # where the launcher and the tray open the browser
     app.jinja_env.globals["t"] = i18n.t
 
     infra.init_app(app)

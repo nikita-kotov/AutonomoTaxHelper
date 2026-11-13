@@ -274,6 +274,7 @@
   "filing.confirm_delete": "Delete this filing record?",
 
   "settings.title": "Settings",
+  "settings.first_run": "Welcome. Fill in your details and tax profile, then press Save: the dashboard shows what is still missing.",
   "settings.h_language": "Language",
   "settings.language": "Interface language",
   "settings.language_auto": "Automatic (browser language)",

@@ -2,6 +2,7 @@
 {% block title %}{{ t('nav.settings') }}{% endblock %}
 {% block content %}
 <h1>{{ t('settings.title') }}</h1>
+{% if first_run %}<div class="note">{{ t('settings.first_run') }}</div>{% endif %}
 <form method="post">
   <div class="card">
     <h2 style="margin-top:0">{{ t('settings.h_language') }}</h2>
